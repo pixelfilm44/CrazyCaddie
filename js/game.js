@@ -12,9 +12,9 @@ class CrazyCaddieGame {
     this.keys = {};
     this.mouse = { x: 0, y: 0, worldX: 0, worldY: 0, down: false };
 
-    // Multi-touch & Mobile responsive state
-    this.isTouchDevice = Boolean('ontouchstart' in window || navigator.maxTouchPoints > 0);
-    this.isMobile = this.isTouchDevice || window.innerWidth <= 820;
+    // Multi-touch & Mobile responsive state (only enable mobile touch controls on actual mobile/tablet devices or real touch input!)
+    this.isTouchDevice = Boolean(/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent));
+    this.isMobile = this.isTouchDevice;
     this.worldScale = 1.0;
     this.touchControls = {
       stickTouchId: null,
@@ -116,12 +116,8 @@ class CrazyCaddieGame {
     this.canvas.height = Math.floor(this.height * this.dpr);
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
 
-    this.isMobile = Boolean(
-      this.isTouchDevice ||
-      this.width <= 820 ||
-      this.height <= 520
-    );
-    // Zoom camera out slightly on small phone screens so you can see incoming golf balls clearly!
+    this.isMobile = Boolean(this.isTouchDevice);
+    // Zoom camera out slightly on small screens so you can see incoming golf balls clearly!
     const minDim = Math.min(this.width, this.height);
     this.worldScale = minDim < 620 ? Math.max(0.68, minDim / 640) : 1.0;
 
@@ -246,7 +242,7 @@ class CrazyCaddieGame {
         return;
       }
       if (this.state === 'playing' && e.button === 0) {
-        if ((this.isMobile || this.player.isLizard) && this.handleMobileOverlayTap(this.mouse.x, this.mouse.y, 'mouse')) {
+        if (this.isMobile && this.handleMobileOverlayTap(this.mouse.x, this.mouse.y, 'mouse')) {
           return;
         }
         if (this.player.isLizard) {
@@ -1590,12 +1586,11 @@ class CrazyCaddieGame {
       ctx.fillRect(kX + 12, kY + 22, Math.max(4, ((kW - 24) * this.kong.hp) / this.kong.maxHp), 9);
     }
 
-    // 4. Draw On-Screen Multi-Touch Virtual Controls on Mobile (or FIRE! button when Lizard on Desktop!)
-    if ((this.isMobile || p.isLizard) && this.state === 'playing') {
+    // 4. Draw On-Screen Multi-Touch Virtual Controls ONLY on Mobile; Desktop shows only the Keyboard Commands bar!
+    if (this.isMobile && this.state === 'playing') {
       this.drawMobileControls();
-    }
-    if (!this.isMobile) {
-      const botW = Math.min(580, w - 28);
+    } else if (!this.isMobile) {
+      const botW = Math.min(600, w - 28);
       const botX = (w - botW) / 2;
       const botY = h - 42;
       this.renderer.drawBoilBox(botX, botY, botW, 32, 'rgba(20, 17, 15, 0.9)', '#161311', 2.2, 0.9, 710);
@@ -1606,7 +1601,7 @@ class CrazyCaddieGame {
         p.ballsCarried >= this.quota
           ? 'QUOTA MET! PRESS [B] FOR NEXT EPISODE & UPGRADES!'
           : p.isLizard
-          ? '[WASD] Stomp & Whip Tail  •  [F / CLICK / FIRE! BTN] Breathe Fire  •  [SPACE] Roar  •  [B] Shop'
+          ? '[WASD] Stomp & Whip Tail  •  [F / CLICK] Breathe Fire  •  [SPACE] Roar  •  [B] Shop'
           : `[WASD] Drive  •  [SPACE] Horn  •  [C] Duck  •  [SHIFT] Turbo  •  [B] Shop (${p.walletBalls})`;
       ctx.fillText(label, w / 2, botY + 21);
     }
