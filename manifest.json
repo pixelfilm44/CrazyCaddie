@@ -1,0 +1,24 @@
+{
+  "name": "CRAZY CADDY CARNAGE (1994)",
+  "short_name": "Crazy Caddy",
+  "description": "1994 90s cel-animation cartoon golf cart chaos!",
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#161311",
+  "theme_color": "#161311",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
