@@ -345,7 +345,7 @@ class CartoonRenderer {
 
   /**
    * Draw Top-Down 3/4 Golf Cart with Snotty inside + installed upgrades
-   * Includes floating water-ripple rings & buoyancy bobbing when in a pond!
+   * High-contrast Hot-Rod styling, directional chevron & headlight beams so it pops off the turf!
    */
   drawGolfCart(player) {
     const ctx = this.ctx;
@@ -355,140 +355,210 @@ class CartoonRenderer {
     const bobOffset = player.inWater ? Math.sin(player.waterBobPhase || 0) * 3.2 - 3 : 0;
     const zOffset = (player.z || 0) + bobOffset;
 
+    // 1. High-Visibility Arcade Locator Ring & Forward Direction Chevron on the ground
+    ctx.save();
+    ctx.translate(player.x, player.y + 4);
+    ctx.rotate(player.angle);
+
     if (player.inWater) {
-      // Draw expanding boiling water wake ripples around the floating cart!
-      ctx.save();
-      ctx.translate(player.x, player.y);
-      ctx.rotate(player.angle);
+      // Expanding boiling water wake ripples around the floating cart!
       const ripplePulse = (Date.now() * 0.02) % 10;
       const ringColor = player.waterToxic ? '#a4ff3b' : '#b8e8fa';
-      this.drawBoilEllipse(0, 0, 27 + ripplePulse * 0.6, 18 + ripplePulse * 0.4, null, ringColor, 2.2, 1.3, 14, 305);
-      this.drawBoilEllipse(0, 0, 33 + ripplePulse * 0.9, 22 + ripplePulse * 0.6, null, 'rgba(255,255,255,0.45)', 1.5, 1.4, 14, 306);
-      ctx.restore();
+      this.drawBoilEllipse(0, 0, 32 + ripplePulse * 0.6, 22 + ripplePulse * 0.4, null, ringColor, 2.5, 1.3, 14, 305);
+      this.drawBoilEllipse(0, 0, 39 + ripplePulse * 0.9, 27 + ripplePulse * 0.6, null, 'rgba(255,255,255,0.55)', 1.8, 1.4, 14, 306);
     } else {
-      // Ground shadow
-      ctx.save();
-      ctx.translate(player.x, player.y + 6);
-      ctx.rotate(player.angle);
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.32)';
+      // Subtle bright arcade highlight halo + dark drop shadow so cart pops off green turf!
+      ctx.fillStyle = 'rgba(255, 230, 50, 0.22)';
       ctx.beginPath();
-      ctx.ellipse(0, 0, 26, 17, 0, 0, Math.PI * 2);
+      ctx.ellipse(0, -2, 36, 25, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.restore();
+
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.42)';
+      ctx.beginPath();
+      ctx.ellipse(0, 3, 31, 20, 0, 0, Math.PI * 2);
+      ctx.fill();
     }
 
-    // Cart body lifted by zOffset (and slightly rocked by waves when floating!)
+    // Forward-Pointing Directional Arrow Chevron in front of the cart
+    this.drawBoilPolygon(
+      [
+        [36, -9],
+        [47, 0],
+        [36, 9],
+        [39, 0]
+      ],
+      '#ffea00',
+      '#161311',
+      2.2,
+      0.7,
+      308
+    );
+    ctx.restore();
+
+    // 2. Cart body lifted by zOffset (scaled 1.22x for crystal-clear visibility on mobile & desktop!)
     ctx.translate(player.x, player.y - zOffset);
     const waveTilt = player.inWater ? Math.sin((player.waterBobPhase || 0) * 0.7) * 0.06 : 0;
     ctx.rotate(player.angle + waveTilt);
+    ctx.scale(1.22, 1.22);
 
-    // 4 Chunky Rubber Tires (partially submerged when floating in water)
+    // 3. Glowing Headlight Cones projecting forward
+    ctx.save();
+    const grad = ctx.createLinearGradient(22, 0, 62, 0);
+    grad.addColorStop(0, 'rgba(255, 248, 160, 0.55)');
+    grad.addColorStop(1, 'rgba(255, 248, 160, 0.0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(22, -10);
+    ctx.lineTo(62, -22);
+    ctx.lineTo(62, 22);
+    ctx.lineTo(22, 10);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    // 4 Chunky Rubber Tires with whitewall rims (partially submerged when floating in water)
     if (!player.inWater) {
       const wheelCoords = [
-        [-17, -15],
-        [15, -15],
-        [-17, 15],
-        [15, 15]
+        [-17, -16],
+        [15, -16],
+        [-17, 16],
+        [15, 16]
       ];
       wheelCoords.forEach(([wx, wy], idx) => {
-        this.drawBoilBox(wx - 5, wy - 3.5, 10, 7, '#1c1a19', this.palette.ink, 2, 0.8, 300 + idx);
+        this.drawBoilBox(wx - 5.5, wy - 4, 11, 8, '#141210', this.palette.ink, 2.2, 0.8, 300 + idx);
+        // Bright yellow rim hubcap
+        ctx.fillStyle = '#f7d53b';
+        ctx.fillRect(wx - 2, wy - 1.5, 4, 3);
       });
     }
 
-    // Rear bumper & battery compartment (sparks if Governor Bypass unlocked!)
-    this.drawBoilBox(-24, -13, 12, 26, '#d6ccb8', this.palette.ink, 2.5, 1.1, 310);
+    // Rear bumper & battery compartment
+    this.drawBoilBox(-25, -13, 12, 26, '#ff3b2f', this.palette.ink, 2.6, 1.0, 310);
 
-    // Main Fiberglass Cart Chassis (Classic dingy country-club cream or trash-armor gray)
-    const bodyColor = player.upgrades.armor > 0 ? '#7f8a8e' : '#efe3c8';
+    // Main Fiberglass Cart Chassis — Pure Crisp White with thick 3.2px ink border!
+    const bodyColor = player.upgrades.armor > 0 ? '#a8b8c0' : '#ffffff';
     this.drawBoilPolygon(
       [
         [-21, -14],
         [18, -13],
-        [24, -9],
-        [24, 9],
+        [25, -9],
+        [25, 9],
         [18, 13],
         [-21, 14]
       ],
       bodyColor,
       this.palette.ink,
-      2.8,
-      1.2,
+      3.2,
+      1.1,
       311
     );
 
-    // Trash-can corrugated metal plates if armored
-    if (player.upgrades.armor > 0) {
-      this.drawBoilLine(-16, -12, -16, 12, '#4f585c', 2, 0.8, 312);
-      this.drawBoilLine(10, -12, 10, 12, '#4f585c', 2, 0.8, 313);
-    }
+    // Blazing Hot-Rod Yellow-Orange Front Hood & Red Flame Racing Stripe!
+    this.drawBoilPolygon(
+      [
+        [6, -12.5],
+        [18, -12.5],
+        [24.5, -8.5],
+        [24.5, 8.5],
+        [18, 12.5],
+        [6, 12.5]
+      ],
+      '#ffb300',
+      this.palette.ink,
+      2.4,
+      0.9,
+      312
+    );
+    // Red Hot-Rod Flame Stripe on Hood
+    this.drawBoilPolygon(
+      [
+        [24, -4],
+        [11, -7],
+        [15, -2],
+        [9, 0],
+        [15, 2],
+        [11, 7],
+        [24, 4]
+      ],
+      '#ff2a1f',
+      this.palette.ink,
+      1.8,
+      0.7,
+      313
+    );
 
-    // Bench Seat & Floorboard
-    this.drawBoilBox(-12, -11, 12, 22, '#6e472b', this.palette.ink, 2.2, 0.9, 314);
-    this.drawBoilBox(0, -10, 13, 20, '#363330', this.palette.ink, 1.8, 0.8, 315);
+    // Bright Headlight Lamps on front corners
+    this.drawBoilBox(22, -10, 4, 5, '#ffffa8', this.palette.ink, 1.8, 0.4, 340);
+    this.drawBoilBox(22, 5, 4, 5, '#ffffa8', this.palette.ink, 1.8, 0.4, 341);
+
+    // Bench Seat (Bold red vinyl) & Dark Floorboard
+    this.drawBoilBox(-13, -11.5, 12, 23, '#d92b2b', this.palette.ink, 2.2, 0.8, 314);
+    this.drawBoilBox(-1, -10, 9, 20, '#2b2826', this.palette.ink, 1.8, 0.7, 315);
 
     // Stolen Golf Ball Basket on the back (fills up visually as you collect balls!)
-    this.drawBoilBox(-25, -10, 10, 20, '#3d3935', this.palette.ink, 2.2, 0.9, 316);
+    this.drawBoilBox(-26, -10.5, 11, 21, '#262320', this.palette.ink, 2.4, 0.8, 316);
     const visibleBalls = Math.min(12, Math.floor(player.ballsCarried / 2));
     for (let b = 0; b < visibleBalls; b++) {
-      const bx = -22 + (b % 2) * 4;
+      const bx = -23 + (b % 2) * 4.2;
       const by = -7 + Math.floor(b / 2) * 2.8;
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.arc(bx, by, 2.1, 0, Math.PI * 2);
+      ctx.arc(bx, by, 2.2, 0, Math.PI * 2);
       ctx.fill();
     }
 
     // Steering column & wheel
-    this.drawBoilLine(11, -3, 4, -3, this.palette.ink, 2.5, 0.6, 317);
-    this.drawBoilEllipse(4, -3, 2.5, 5, null, this.palette.ink, 2.2, 0.6, 8, 318);
+    this.drawBoilLine(11, -3, 4, -3, this.palette.ink, 2.6, 0.5, 317);
+    this.drawBoilEllipse(4, -3, 2.8, 5.5, null, this.palette.ink, 2.4, 0.5, 8, 318);
 
     // Snotty the Caddie sitting in driver seat!
     const headX = player.ducking ? 5 : -3;
-    const headRadius = player.ducking ? 6.5 : 8.5;
-    // Caddie Torso & stained bib
-    this.drawBoilEllipse(-3, -3, 7, 8, '#e3ded1', this.palette.ink, 2.2, 0.9, 8, 320);
+    const headRadius = player.ducking ? 7 : 9;
+    // Caddie Torso & bright caddie bib
+    this.drawBoilEllipse(-3, -3, 7.5, 8.5, '#7be0ff', this.palette.ink, 2.3, 0.8, 8, 320);
 
     // Caddie Big Forehead & Pompadour (or Trash-Can Lid Helmet!)
-    this.drawBoilEllipse(headX, -3, headRadius, headRadius * 0.9, this.palette.skin, this.palette.ink, 2.3, 1.0, 10, 321);
+    this.drawBoilEllipse(headX, -3, headRadius, headRadius * 0.9, this.palette.skin, this.palette.ink, 2.4, 0.9, 10, 321);
     if (player.hasHelmet) {
-      this.drawBoilEllipse(headX, -3, headRadius + 1.5, headRadius + 1, '#8f999e', this.palette.ink, 2.2, 1.0, 10, 322);
+      this.drawBoilEllipse(headX, -3, headRadius + 1.8, headRadius + 1.2, '#b0bec5', this.palette.ink, 2.4, 0.9, 10, 322);
+      this.drawBoilBox(headX - 3, -5, 5, 4, '#ffea00', this.palette.ink, 1.5, 0.4, 345);
     } else {
       // Pompadour hair pointing forward
       this.drawBoilPolygon(
         [
-          [headX - 6, -9],
-          [headX + 8, -7],
-          [headX + 9, 1],
+          [headX - 6, -9.5],
+          [headX + 8.5, -7.5],
+          [headX + 9.5, 1],
           [headX - 6, 3]
         ],
         '#593e25',
         this.palette.ink,
-        2,
-        1.1,
+        2.2,
+        1.0,
         323
       );
     }
 
     // Pulsating purple lump on top of head if concussed
     if (player.lumps > 0) {
-      this.drawBoilEllipse(headX - 2, -8, 4.5, 4.5, '#9e479c', this.palette.ink, 1.8, 0.9, 8, 324);
+      this.drawBoilEllipse(headX - 2, -8.5, 4.8, 4.8, '#b342b0', this.palette.ink, 2.0, 0.8, 8, 324);
     }
 
     // Double-Decker Airhorn mounted on hood if upgraded
     if (player.upgrades.airhorn > 0) {
-      this.drawBoilPolygon([[12, 8], [23, 5], [23, 12]], '#d93829', this.palette.ink, 2, 0.9, 325);
+      this.drawBoilPolygon([[12, 8], [24, 5], [24, 12]], '#ff2a1f', this.palette.ink, 2.2, 0.8, 325);
     }
 
     // PVC Potato-Gun Ball Cannon mounted on passenger side if unlocked!
     if (player.upgrades.cannon > 0) {
-      this.drawBoilBox(-4, 6, 28, 6, '#5c9eb8', this.palette.ink, 2.2, 0.9, 326);
-      this.drawBoilBox(21, 5, 5, 8, '#2b2826', this.palette.ink, 2, 0.8, 327);
+      this.drawBoilBox(-4, 6, 29, 6.5, '#29b6f6', this.palette.ink, 2.3, 0.8, 326);
+      this.drawBoilBox(22, 5, 5, 8.5, '#161311', this.palette.ink, 2, 0.7, 327);
     }
 
-    // Fiberglass Sun Roof (partially transparent so you can still see Snotty, absorbs 1 overhead hit!)
+    // Fiberglass Sun Roof (bright yellow-white striped canopy when equipped!)
     if (player.hasRoof) {
-      this.drawBoilBox(-18, -13, 34, 26, 'rgba(245, 238, 220, 0.76)', this.palette.ink, 2.5, 1.2, 330);
-      this.drawBoilLine(-16, -11, 14, 11, 'rgba(22, 19, 17, 0.25)', 1.5, 0.8, 331);
+      this.drawBoilBox(-18, -13, 34, 26, 'rgba(255, 245, 190, 0.82)', this.palette.ink, 2.8, 1.1, 330);
+      this.drawBoilLine(-16, -11, 14, 11, 'rgba(255, 59, 47, 0.45)', 2.5, 0.7, 331);
     }
 
     ctx.restore();
