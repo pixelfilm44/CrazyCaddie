@@ -87,12 +87,12 @@ class PlayerCart {
     game.camera.shake = 18;
     game.spawnParticles(this.x, this.y, '#a4ff3b', 28);
     game.spawnParticles(this.x, this.y, '#ffea00', 14);
-    game.addFloatingText(this.x, this.y - 45, 'MUTATED INTO SNOTZILLA! PRESS [FIRE!] TO TORCH!', '#a4ff3b');
+    game.addFloatingText(this.x, this.y - 45, 'MUTATED INTO SNOTZILLA! PRESS [F / CLICK] TO BREATHE FIRE!', '#a4ff3b');
     this.say('ROAAAR! I\'M A GIANT FIRE-BREATHING LIZARD!', 3.2);
 
-    // The panicked Golf Club immediately calls in COUNTRY CLUB KONG!
+    // The panicked Golf Club immediately drops COUNTRY CLUB KONG right in front of you!
     if (game.spawnKong) {
-      setTimeout(() => game.spawnKong(), 1400);
+      game.spawnKong();
     }
   }
 
@@ -914,10 +914,11 @@ class CountryClubKong {
 
     this.maxHp = 100;
     this.hp = 100;
-    this.state = 'roar'; // 'roar', 'chase', 'throw', 'defeated'
-    this.timer = 1.6;
+    this.state = 'roar'; // 'roar', 'chase', 'throw', 'leap', 'defeated'
+    this.timer = 0.85;
     this.burnTimer = 0;
     this.hitCooldown = 0;
+    this.attackCooldown = 0;
     this.ragdollAngle = 0;
     this.projectiles = [];
 
@@ -996,15 +997,20 @@ class CountryClubKong {
     if (this.speechTimer > 0) this.speechTimer -= dt;
     if (this.burnTimer > 0) this.burnTimer -= dt;
     if (this.hitCooldown > 0) this.hitCooldown -= dt;
+    if (this.attackCooldown > 0) this.attackCooldown -= dt;
 
-    // Update airborne Z height (drop-in slam or leap!)
+    // Update airborne Z height (drop-in slam or super-leap!)
     if (this.z > 0 || this.vz !== 0) {
+      this.x += this.vx * dt;
+      this.y += this.vy * dt;
       this.z += this.vz * dt;
       this.vz -= 520 * dt;
       if (this.z <= 0) {
         this.z = 0;
         this.vz = 0;
-        game.camera.shake = 16;
+        this.vx *= 0.4;
+        this.vy *= 0.4;
+        game.camera.shake = 18;
         window.sound.playCrash('thud');
         game.shockwaves.push({ x: this.x, y: this.y, r: 20, maxR: 220, color: '#ff5722' });
       }
@@ -1019,15 +1025,15 @@ class CountryClubKong {
       pr.vz -= 420 * dt;
       pr.angle += 7 * dt;
 
-      // Check hit against player
+      // Check hit against player (Hurts both Cart and Lizard!)
       const p = game.player;
-      if (Math.hypot(pr.x - p.x, pr.y - p.y) < 38 && pr.z < 36) {
-        game.camera.shake = 14;
+      if (Math.hypot(pr.x - p.x, pr.y - p.y) < 42 && pr.z < 42) {
+        game.camera.shake = 16;
         window.sound.playCrash('thud');
         const pushA = Math.atan2(p.y - pr.y, p.x - pr.x);
         p.vx += Math.cos(pushA) * 320;
         p.vy += Math.sin(pushA) * 320;
-        game.addFloatingText(p.x, p.y - 35, 'HIT BY THROWN GOLF CART!', '#ff4d3b');
+        game.onPlayerHeadHit(pr, true, 'CRUSHED BY KONG\'S THROWN CART!');
         this.projectiles.splice(i, 1);
         continue;
       }
@@ -1056,39 +1062,54 @@ class CountryClubKong {
 
     this.timer -= dt;
 
+    // If Kong ever falls far behind (> 420px away), he performs a massive SUPER-LEAP right onto your screen!
+    if (dist > 420 && this.z === 0 && this.state === 'chase') {
+      const leapTime = 0.75;
+      const landX = Math.max(120, Math.min(world.width - 120, p.x - Math.cos(this.angle) * 125));
+      const landY = Math.max(120, Math.min(world.height - 120, p.y - Math.sin(this.angle) * 125));
+      this.vx = (landX - this.x) / leapTime;
+      this.vy = (landY - this.y) / leapTime;
+      this.vz = 0.5 * 520 * leapTime;
+      this.z = 6;
+      if (window.sound.playKongRoar) window.sound.playKongRoar();
+      this.say('KONG LEAP SMASH!!', 1.8);
+      return;
+    }
+
     if (this.state === 'roar') {
       if (this.timer <= 0) {
         this.state = 'chase';
-        this.timer = 3.2;
+        this.timer = 2.8;
       }
-    } else if (this.state === 'chase') {
-      const speed = 195;
-      this.vx += (Math.cos(this.angle) * speed - this.vx) * Math.min(1, dt * 6);
-      this.vy += (Math.sin(this.angle) * speed - this.vy) * Math.min(1, dt * 6);
+    } else if (this.state === 'chase' && this.z === 0) {
+      const speed = 310;
+      this.vx += (Math.cos(this.angle) * speed - this.vx) * Math.min(1, dt * 7);
+      this.vy += (Math.sin(this.angle) * speed - this.vy) * Math.min(1, dt * 7);
       this.x += this.vx * dt;
       this.y += this.vy * dt;
-      this.walkPhase += dt * 7;
+      this.walkPhase += dt * 9;
 
-      // Ground-pound knockback if Kong reaches the Lizard!
-      if (dist < 56 && this.z <= 5) {
-        this.vz = 150;
-        this.z = 4;
+      // Ground-pound knockback & damage if Kong reaches the Lizard!
+      if (dist < 58 && this.z <= 5 && this.attackCooldown <= 0) {
+        this.attackCooldown = 1.4;
+        this.vz = 155;
+        this.z = 5;
         p.vx = Math.cos(this.angle) * 380;
         p.vy = Math.sin(this.angle) * 380;
-        game.camera.shake = 15;
+        game.camera.shake = 18;
         window.sound.playCrash('thud');
-        game.addFloatingText(p.x, p.y - 38, 'KONG BELLY SLAM!', '#ff4d3b');
         this.say('GET OFF MY COUNTRY CLUB!!', 2.0);
+        game.onPlayerHeadHit(this, true, 'KONG BELLY SLAM!');
       }
 
       if (this.timer <= 0) {
         this.state = 'throw';
-        this.timer = 1.1;
+        this.timer = 0.85;
         if (window.sound.playKongRoar) window.sound.playKongRoar();
         this.say('EAT GOLF CART, SCALY FREAK!!', 1.8);
 
         // Hurl a whole golf cart at Snotzilla!
-        const flightT = Math.max(0.65, Math.min(1.25, dist / 420));
+        const flightT = Math.max(0.55, Math.min(1.05, dist / 460));
         this.projectiles.push({
           x: this.x + Math.cos(this.angle) * 28,
           y: this.y + Math.sin(this.angle) * 28,
@@ -1102,7 +1123,7 @@ class CountryClubKong {
     } else if (this.state === 'throw') {
       if (this.timer <= 0) {
         this.state = 'chase';
-        this.timer = 3.0;
+        this.timer = 2.6;
       }
     }
   }

@@ -58,10 +58,10 @@ class GolfCourseWorld {
       { x: 1080, y: 1180, rx: 78, ry: 50 }
     ];
 
-    // Water Hazards & Secret Easter-Egg Green Radioactive Pond tucked in the far corner!
+    // Water Hazards & Secret Easter-Egg Green Radioactive Pond tucked behind the trees!
     this.ponds = [
       { x: 1140, y: 860, rx: 195, ry: 125, toxic: false, label: 'SWAN POND' },
-      { x: 2310, y: 1730, rx: 115, ry: 78, toxic: true, label: '' }
+      { x: 2180, y: 1640, rx: 125, ry: 85, toxic: true, label: '' }
     ];
 
     // Angry Prized Country Club Swans swimming around Swan Pond

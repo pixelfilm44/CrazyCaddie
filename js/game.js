@@ -448,6 +448,15 @@ class CrazyCaddieGame {
     this.player.vx = 0;
     this.player.vy = 0;
     this.player.ballsCarried = 0;
+
+    // Reset Lizard transformation at the start of every new Episode so you start back as a Caddie in your cart!
+    this.player.isLizard = false;
+    this.player.tailSegments = [];
+    this.player.fireBreathTimer = 0;
+    this.player.abandonedCart = null;
+    this.player.inWater = false;
+    this.player.waterToxic = false;
+
     const viewW = this.width / this.worldScale;
     const viewH = this.height / this.worldScale;
     this.camera.x = Math.max(0, Math.min(this.world.width - viewW, this.player.x - viewW / 2));
@@ -664,16 +673,18 @@ class CrazyCaddieGame {
   }
 
   /**
-   * Spawn COUNTRY CLUB KONG when Snotty mutates into the Giant Lizard!
+   * Spawn COUNTRY CLUB KONG right in front of the player when Snotty mutates into the Giant Lizard!
    */
   spawnKong() {
     if (this.kong && this.kong.state !== 'defeated') return;
-    const kx = Math.max(240, Math.min(this.world.width - 240, this.player.x - 240));
-    const ky = Math.max(240, Math.min(this.world.height - 240, this.player.y - 180));
+    // Drop Kong 145px toward the center of the course from the player so he lands right on screen!
+    const toCenterAngle = Math.atan2(this.world.height / 2 - this.player.y, this.world.width / 2 - this.player.x);
+    const kx = Math.max(160, Math.min(this.world.width - 160, this.player.x + Math.cos(toCenterAngle) * 145));
+    const ky = Math.max(160, Math.min(this.world.height - 160, this.player.y + Math.sin(toCenterAngle) * 145));
     this.kong = new window.CountryClubKong(kx, ky);
     if (window.sound.playKongRoar) window.sound.playKongRoar();
     this.camera.shake = 22;
-    this.addFloatingText(this.player.x, this.player.y - 60, 'ALERT: THE GOLF CLUB CALLED IN COUNTRY CLUB KONG!!', '#ff2a1f');
+    this.addFloatingText(this.player.x, this.player.y - 60, 'ALERT: COUNTRY CLUB KONG DROPPED IN TO FIGHT YOU!!', '#ff2a1f');
   }
 
   /**
@@ -765,14 +776,15 @@ class CrazyCaddieGame {
   }
 
   /**
-   * Called when an incoming 140mph golf ball nails Snotty at head height!
+   * Called when an incoming 140mph golf ball or heavy boss/vehicle attack hits Snotty (or Snotzilla)!
    */
-  onPlayerHeadHit(ball) {
+  onPlayerHeadHit(ball, isHeavyAttack = false, customMsg = null) {
     const p = this.player;
     if (p.hurtTimer > 0) return;
 
-    // Giant Mutant Lizard scales deflect regular golf balls harmlessly!
-    if (p.isLizard) {
+    // Giant Mutant Lizard scales deflect regular small golf balls harmlessly,
+    // BUT enemy vehicles (Ranger Chuck's Mower) and Country Club Kong CAN still hurt the Lizard!
+    if (p.isLizard && !isHeavyAttack) {
       window.sound.playBallPickup(2);
       this.addFloatingText(p.x, p.y - 36, 'PLINK! BOUNCED OFF LIZARD SCALES!', '#a4ff3b');
       return;
@@ -781,8 +793,8 @@ class CrazyCaddieGame {
     this.camera.shake = 18;
     this.vhsGlitchTimer = 0.45;
 
-    // Check Fiberglass Cart Roof first
-    if (p.hasRoof) {
+    // Check Fiberglass Cart Roof first (only when in cart)
+    if (!p.isLizard && p.hasRoof) {
       p.hasRoof = false;
       p.hurtTimer = 0.9;
       window.sound.playCrash('thud');
@@ -792,8 +804,8 @@ class CrazyCaddieGame {
       return;
     }
 
-    // Check Galvanized Trash-Can Lid Helmet second
-    if (p.hasHelmet) {
+    // Check Galvanized Trash-Can Lid Helmet second (only when in cart)
+    if (!p.isLizard && p.hasHelmet) {
       p.hasHelmet = false;
       p.hurtTimer = 0.9;
       window.sound.playHeadBonk(false);
@@ -803,21 +815,24 @@ class CrazyCaddieGame {
       return;
     }
 
-    // Direct unhelmeted skull impact! Grow a throbbing purple goose-egg lump!
+    // Direct impact! Grow a throbbing purple goose-egg lump!
     p.lumps++;
     p.hurtTimer = 1.25;
     p.concussionSpin = Math.min(2.2, p.lumps * 0.75);
 
     window.sound.playHeadBonk(p.lumps >= p.maxLumps);
-    window.sound.playScream(390);
+    window.sound.playScream(p.isLizard ? 220 : 390);
     this.spawnParticles(p.x, p.y - 10, '#d92b2b', 14);
 
     if (p.lumps >= p.maxLumps) {
-      this.deathReason = '3 GOLF BALLS TO THE FOREHEAD';
+      this.deathReason = customMsg || (p.isLizard ? 'KNOCKED OUT BY COUNTRY CLUB SECURITY' : '3 GOLF BALLS TO THE FOREHEAD');
       this.triggerGameOver();
     } else {
-      this.addFloatingText(p.x, p.y - 38, `BONK! LUMP ${p.lumps}/3`, '#ff2a1f');
-      const reactions = ['OW! MY FOREHEAD!', 'I SEE BIRDS, DUDE!', 'DAMMIT! MY SKULL!'];
+      const hitLabel = customMsg ? `${customMsg} (LUMP ${p.lumps}/3)` : `BONK! LUMP ${p.lumps}/3`;
+      this.addFloatingText(p.x, p.y - 38, hitLabel, '#ff2a1f');
+      const reactions = p.isLizard
+        ? ['ROAAAR! THAT HURT MY SCALES!', 'OW! WATCH THE TAIL!', 'DAMMIT! MY LIZARD SKULL!']
+        : ['OW! MY FOREHEAD!', 'I SEE BIRDS, DUDE!', 'DAMMIT! MY SKULL!'];
       p.say(reactions[p.lumps % reactions.length], 2.0);
     }
   }
@@ -947,7 +962,7 @@ class CrazyCaddieGame {
         const dx = this.player.x - r.x;
         const dy = this.player.y - r.y;
         r.angle = Math.atan2(dy, dx);
-        const rSpeed = 235 + this.episode * 15;
+        const rSpeed = (this.player.isLizard ? 315 : 255) + this.episode * 15;
         r.vx = Math.cos(r.angle) * rSpeed;
         r.vy = Math.sin(r.angle) * rSpeed;
         r.x += r.vx * dt;
@@ -964,21 +979,22 @@ class CrazyCaddieGame {
           }
         }
 
-        // Check collision between Ranger's Mower and Player Cart
+        // Check collision between Ranger's Mower and Player Cart OR Mutant Lizard!
         const dist = Math.hypot(this.player.x - r.x, this.player.y - r.y);
-        if (dist < 42 && this.player.z < 12 && this.player.hurtTimer <= 0) {
+        if (dist < 46 && this.player.z < 16 && this.player.hurtTimer <= 0) {
           this.camera.shake = 16;
           window.sound.playCrash('thud');
           const push = 360;
           this.player.vx = Math.cos(r.angle) * push;
           this.player.vy = Math.sin(r.angle) * push;
 
-          if (this.player.upgrades.armor > 0) {
+          if (!this.player.isLizard && this.player.upgrades.armor > 0) {
             this.player.upgrades.armor--;
             this.player.hurtTimer = 1.1;
             this.addFloatingText(this.player.x, this.player.y - 35, 'TRASH-CAN BUMPER ABSORBED RANGER MOWER!', '#8f999e');
           } else {
-            this.onPlayerHeadHit({ x: r.x, y: r.y });
+            // isHeavyAttack = true so the spinning mower blades hurt both the Cart AND the Lizard!
+            this.onPlayerHeadHit({ x: r.x, y: r.y }, true, 'MOWED BY RANGER CHUCK!');
           }
         }
       }
@@ -1533,9 +1549,19 @@ class CrazyCaddieGame {
         ctx.fillStyle = g.aimAtPlayer ? '#ff2a1f' : '#eb5e7b';
         ctx.fillRect(mapX + g.x * sx - 2, mapY + g.y * sy - 2, 4, 4);
       }
-      ctx.fillStyle = '#f7d53b';
+      // Show Country Club Kong on radar minimap!
+      if (this.kong && this.kong.state !== 'defeated') {
+        ctx.fillStyle = '#ff2a1f';
+        ctx.strokeStyle = '#ffea00';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(mapX + this.kong.x * sx, mapY + this.kong.y * sy, 5.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+      ctx.fillStyle = p.isLizard ? '#a4ff3b' : '#f7d53b';
       ctx.beginPath();
-      ctx.arc(mapX + p.x * sx, mapY + p.y * sy, 3.8, 0, Math.PI * 2);
+      ctx.arc(mapX + p.x * sx, mapY + p.y * sy, 4, 0, Math.PI * 2);
       ctx.fill();
 
       // Top-Center Compact Rage Meter
@@ -1570,7 +1596,7 @@ class CrazyCaddieGame {
       ctx.fillText(this.isMobile ? 'FORE! TAP DUCK!' : 'FORE! DUCK [C]!', w / 2, alY + 21);
     }
 
-    // 3b. COUNTRY CLUB KONG Boss Health Bar (when Kong is on the course!)
+    // 3b. COUNTRY CLUB KONG Boss Health Bar & Off-Screen Pointer (when Kong is on the course!)
     if (this.kong && this.kong.state !== 'defeated') {
       const kW = compact ? 210 : 280;
       const kX = w / 2 - kW / 2;
@@ -1584,6 +1610,18 @@ class CrazyCaddieGame {
       ctx.fillRect(kX + 12, kY + 22, kW - 24, 9);
       ctx.fillStyle = '#ff2a1f';
       ctx.fillRect(kX + 12, kY + 22, Math.max(4, ((kW - 24) * this.kong.hp) / this.kong.maxHp), 9);
+
+      // Draw directional pointer badge if Kong is near or outside screen bounds
+      const screenKX = (this.kong.x - this.camera.x) * this.worldScale;
+      const screenKY = (this.kong.y - this.camera.y) * this.worldScale;
+      if (screenKX < 40 || screenKX > w - 40 || screenKY < 40 || screenKY > h - 40) {
+        const indX = Math.max(58, Math.min(w - 58, screenKX));
+        const indY = Math.max(115, Math.min(h - 75, screenKY));
+        this.renderer.drawBoilBox(indX - 42, indY - 16, 84, 32, '#d92b2b', '#ffea00', 2.5, 1.0, 745);
+        ctx.font = `900 13px ${fontStack}`;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('► KONG ◄', indX, indY + 5);
+      }
     }
 
     // 4. Draw On-Screen Multi-Touch Virtual Controls ONLY on Mobile; Desktop shows only the Keyboard Commands bar!
