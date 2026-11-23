@@ -1,7 +1,7 @@
 /**
- * CRAZY CADDIE: Procedural 90s MTV / Mike Judge Cartoon Renderer
+ * CRAZY CADDY CARNAGE: Procedural 90s Cel-Animation Cartoon Renderer
  * Features deterministic 12-FPS "Line Boil", grotesque caricature portraits,
- * hand-inked crosshatching, and VHS comic speech bubbles.
+ * hand-inked crosshatching, and comic speech bubbles.
  */
 
 class CartoonRenderer {
@@ -11,7 +11,7 @@ class CartoonRenderer {
     this.boilFrame = 0;
     this.lastBoilTime = 0;
 
-    // 90s MTV Cel-Animation Palette (muddy, sun-bleached, high-contrast ink)
+    // 90s Cel-Animation Palette (muddy, sun-bleached, high-contrast ink)
     this.palette = {
       ink: '#161311',
       paper: '#f3e5c8',
@@ -29,7 +29,7 @@ class CartoonRenderer {
       blood: '#b8251e',
       bruise: '#7c3f8c',
       gold: '#f5c236',
-      mtvYellow: '#f7d53b'
+      accentYellow: '#f7d53b'
     };
   }
 
@@ -120,7 +120,7 @@ class CartoonRenderer {
   }
 
   /**
-   * Draw a close-up Mike Judge style portrait of "SNOTTY" the Crazy Caddie
+   * Draw a close-up 90s cartoon portrait of "SNOTTY" the Crazy Caddie
    * Shows upper gums, bloodshot squinty eyes, massive forehead, and concussion lumps!
    */
   drawCaddiePortrait(x, y, size, state = {}) {
@@ -135,9 +135,20 @@ class CartoonRenderer {
     const talking = state.talking || false;
     const hasHelmet = state.hasHelmet || false;
     const hurtFlash = state.hurtTimer > 0;
+    const isLizard = state.isLizard || false;
 
-    // Background portrait box (grungy yellow/orange)
-    this.drawBoilBox(0, 0, 100, 100, hurtFlash ? '#d93829' : '#c99e52', '#161311', 3.5, 1.6, 77);
+    // Background portrait box (radioactive neon green if mutated into Lizard!)
+    this.drawBoilBox(
+      0,
+      0,
+      100,
+      100,
+      hurtFlash ? '#d93829' : isLizard ? '#3a7d1c' : '#c99e52',
+      '#161311',
+      3.5,
+      1.6,
+      77
+    );
 
     // Diagonal ink hatch lines in background
     ctx.strokeStyle = 'rgba(22, 19, 17, 0.18)';
@@ -149,40 +160,48 @@ class CartoonRenderer {
       ctx.stroke();
     }
 
-    if (ducking) {
+    if (ducking && !isLizard) {
       ctx.translate(0, 22);
     }
 
-    // Skinny neck with Adam's apple
+    const skinColor = isLizard ? '#66e024' : this.palette.skin;
+
+    // Scaly / Skinny neck
     this.drawBoilPolygon(
-      [[38, 72], [60, 72], [64, 96], [34, 96]],
-      this.palette.skin,
+      [[35, 72], [63, 72], [68, 96], [30, 96]],
+      skinColor,
       this.palette.ink,
       2.5,
       1.2,
       10
     );
-    // Stained White Caddie Bib
+    // Torn Caddie Bib
     this.drawBoilPolygon(
       [[20, 84], [80, 84], [88, 98], [12, 98]],
-      '#e3ded1',
+      isLizard ? '#7be0ff' : '#e3ded1',
       this.palette.ink,
       2.5,
       1.2,
       12
     );
 
-    // Giant Pear/Peanut-shaped Head with huge forehead
+    if (isLizard) {
+      // Dorsal lizard spikes along side of head/neck
+      this.drawBoilPolygon([[16, 42], [26, 36], [25, 50]], '#ffbe1a', this.palette.ink, 2, 1.0, 15);
+      this.drawBoilPolygon([[14, 60], [26, 54], [25, 68]], '#ffbe1a', this.palette.ink, 2, 1.0, 16);
+    }
+
+    // Giant Head
     this.drawBoilPolygon(
       [
-        [28, 26],
-        [72, 24],
-        [78, 48],
-        [70, 78],
-        [32, 79],
-        [24, 52]
+        [26, 24],
+        [74, 22],
+        [80, 48],
+        [72, 79],
+        [30, 79],
+        [22, 52]
       ],
-      hurtFlash ? '#f2857e' : this.palette.skin,
+      hurtFlash ? '#f2857e' : skinColor,
       this.palette.ink,
       2.8,
       1.4,
@@ -195,13 +214,17 @@ class CartoonRenderer {
       const ly = 16 - i * 3;
       const pulse = Math.sin(Date.now() * 0.015 + i) * 2;
       this.drawBoilEllipse(lx, ly, 9 + pulse, 11 + pulse, '#9e479c', this.palette.ink, 2.2, 1.3, 10, 30 + i);
-      // Throb lines around lump
       this.drawBoilLine(lx - 11, ly - 10, lx - 6, ly - 15, '#d92b2b', 2, 1.0, 41 + i);
       this.drawBoilLine(lx + 11, ly - 10, lx + 6, ly - 15, '#d92b2b', 2, 1.0, 45 + i);
     }
 
-    // Tall messy 90s Beavis/Butt-Head Pompadour hair
-    if (!hasHelmet) {
+    // Hair / Helmet / Lizard Spines
+    if (isLizard) {
+      // Lizard Dorsal Crest Spines on top of head + ragged pompadour tufts!
+      this.drawBoilPolygon([[34, 24], [42, 6], [50, 23]], '#ff5722', this.palette.ink, 2.4, 1.1, 55);
+      this.drawBoilPolygon([[48, 23], [58, 4], [66, 23]], '#ffbe1a', this.palette.ink, 2.4, 1.1, 56);
+      this.drawBoilPolygon([[62, 23], [74, 8], [76, 26]], '#ff5722', this.palette.ink, 2.4, 1.1, 57);
+    } else if (!hasHelmet) {
       this.drawBoilPolygon(
         [
           [24, 34],
@@ -220,11 +243,10 @@ class CartoonRenderer {
         1.7,
         50
       );
-      // Stray hair strands
       this.drawBoilLine(40, 6, 44, 1, this.palette.ink, 2, 1.2, 51);
       this.drawBoilLine(58, 7, 65, 2, this.palette.ink, 2, 1.2, 52);
     } else {
-      // galvanized Trash-Can Lid Helmet strapped to head!
+      // Galvanized Trash-Can Lid Helmet strapped to head!
       this.drawBoilPolygon(
         [
           [14, 30],
@@ -238,7 +260,6 @@ class CartoonRenderer {
         1.3,
         60
       );
-      // Trash lid handle on top
       this.drawBoilBox(42, 7, 16, 7, '#6f787d', this.palette.ink, 2.2, 1.0, 62);
     }
 
@@ -247,23 +268,26 @@ class CartoonRenderer {
     this.drawBoilLine(30, 41, 47, 45, this.palette.ink, 2.6, 1.1, 71);
     this.drawBoilLine(70, 41, 53, 45, this.palette.ink, 2.6, 1.1, 72);
 
-    // Squinty Bloodshot Eyes with tiny pupils
-    this.drawBoilEllipse(39, 47, 7, 4.5, '#f7efe1', this.palette.ink, 2, 0.9, 8, 80);
-    this.drawBoilEllipse(61, 47, 7, 4.5, '#f7efe1', this.palette.ink, 2, 0.9, 8, 81);
-    // Tiny dilated pupils
-    ctx.fillStyle = this.palette.ink;
-    ctx.beginPath();
-    ctx.arc(40 + this.jitter(82, 0.7), 47, 2.1, 0, Math.PI * 2);
-    ctx.arc(60 + this.jitter(83, 0.7), 47, 2.1, 0, Math.PI * 2);
-    ctx.fill();
-    // Dark eye bags
-    this.drawBoilLine(33, 53, 45, 52, '#8c5e54', 1.8, 0.8, 84);
-    this.drawBoilLine(55, 52, 67, 53, '#8c5e54', 1.8, 0.8, 85);
+    // Eyes (Yellow Reptile Slit Eyes if Lizard!)
+    const eyeFill = isLizard ? '#ffea00' : '#f7efe1';
+    this.drawBoilEllipse(39, 47, 7.5, 5, eyeFill, this.palette.ink, 2, 0.9, 8, 80);
+    this.drawBoilEllipse(61, 47, 7.5, 5, eyeFill, this.palette.ink, 2, 0.9, 8, 81);
+    ctx.fillStyle = isLizard ? '#d92b2b' : this.palette.ink;
+    if (isLizard) {
+      // Vertical reptile slit pupils!
+      ctx.fillRect(39, 43, 2.4, 8);
+      ctx.fillRect(60, 43, 2.4, 8);
+    } else {
+      ctx.beginPath();
+      ctx.arc(40 + this.jitter(82, 0.7), 47, 2.1, 0, Math.PI * 2);
+      ctx.arc(60 + this.jitter(83, 0.7), 47, 2.1, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
-    // Upturned pig-like nose with visible nostrils
+    // Nose / Reptile Snout nostrils
     this.drawBoilPolygon(
       [[47, 46], [56, 55], [44, 56]],
-      this.palette.skin,
+      skinColor,
       this.palette.ink,
       2.2,
       0.9,
@@ -275,18 +299,24 @@ class CartoonRenderer {
     ctx.arc(52, 54, 1.7, 0, Math.PI * 2);
     ctx.fill();
 
-    // Signature Mike Judge Upper Gums & Crooked Buck Teeth grin ("Uh-huh-huh")
-    const mouthH = talking ? 16 : 12;
+    // Mouth (Fangs + Forked Tongue / Fire glow if Lizard, else Upper Gums & Braces)
+    const mouthH = talking || isLizard ? 16 : 12;
     this.drawBoilBox(34, 61, 32, mouthH, '#3b1518', this.palette.ink, 2.4, 1.1, 100);
-    // Big pink upper gums
-    this.drawBoilBox(35, 61, 30, 5.5, this.palette.gums, this.palette.ink, 1.5, 0.8, 101);
-    // Individual square teeth with braces line
-    this.drawBoilBox(36, 66, 28, 5.5, this.palette.teeth, this.palette.ink, 1.6, 0.8, 102);
-    for (let tx = 41; tx <= 59; tx += 6) {
-      this.drawBoilLine(tx, 66, tx, 71.5, this.palette.ink, 1.4, 0.5, 105 + tx);
+    if (isLizard) {
+      // Sharp reptile fangs & flickering forked fire tongue!
+      this.drawBoilPolygon([[36, 61], [41, 69], [45, 61]], '#ffffff', this.palette.ink, 1.6, 0.6, 101);
+      this.drawBoilPolygon([[55, 61], [59, 69], [64, 61]], '#ffffff', this.palette.ink, 1.6, 0.6, 102);
+      this.drawBoilLine(50, 72, 68, 76, '#ff2a1f', 2.8, 1.1, 103);
+      this.drawBoilLine(68, 76, 75, 72, '#ff2a1f', 2.2, 0.9, 104);
+      this.drawBoilLine(68, 76, 75, 80, '#ff2a1f', 2.2, 0.9, 105);
+    } else {
+      this.drawBoilBox(35, 61, 30, 5.5, this.palette.gums, this.palette.ink, 1.5, 0.8, 101);
+      this.drawBoilBox(36, 66, 28, 5.5, this.palette.teeth, this.palette.ink, 1.6, 0.8, 102);
+      for (let tx = 41; tx <= 59; tx += 6) {
+        this.drawBoilLine(tx, 66, tx, 71.5, this.palette.ink, 1.4, 0.5, 105 + tx);
+      }
+      this.drawBoilLine(36, 68.8, 64, 68.8, '#6e7b85', 1.5, 0.4, 110);
     }
-    // Braces wire
-    this.drawBoilLine(36, 68.8, 64, 68.8, '#6e7b85', 1.5, 0.4, 110);
 
     ctx.restore();
   }
@@ -323,7 +353,7 @@ class CartoonRenderer {
     this.drawBoilPolygon([[24, 32], [28, 12], [72, 12], [76, 32]], '#b82c25', this.palette.ink, 2.6, 1.3, 207);
     this.drawBoilBox(68, 25, 22, 7, '#b82c25', this.palette.ink, 2.4, 1.2, 208);
 
-    // Bugged-out manic Beavis eyes
+    // Bugged-out manic eyes
     this.drawBoilEllipse(39, 45, 7.5, 6.5, '#f7efe1', this.palette.ink, 2.2, 1.0, 8, 210);
     this.drawBoilEllipse(61, 45, 7.5, 6.5, '#f7efe1', this.palette.ink, 2.2, 1.0, 8, 211);
     ctx.fillStyle = this.palette.ink;
@@ -335,7 +365,7 @@ class CartoonRenderer {
     // Pointy nose
     this.drawBoilPolygon([[48, 43], [58, 54], [46, 55]], this.palette.skin, this.palette.ink, 2.2, 1.0, 212);
 
-    // Manic Grin ("Heh-heh, FIRE! Heh-heh!")
+    // Manic Grin
     const mh = talking ? 14 : 9;
     this.drawBoilBox(34, 62, 34, mh, '#3b1518', this.palette.ink, 2.4, 1.1, 213);
     this.drawBoilBox(35, 62, 32, 5, this.palette.teeth, this.palette.ink, 1.6, 0.9, 214);
@@ -344,10 +374,14 @@ class CartoonRenderer {
   }
 
   /**
-   * Draw Top-Down 3/4 Golf Cart with Snotty inside + installed upgrades
-   * High-contrast Hot-Rod styling, directional chevron & headlight beams so it pops off the turf!
+   * Draw Top-Down 3/4 Golf Cart OR Giant Mutant Lizard ("SNOTZILLA") with Whipping Tail & Fire Breath!
    */
   drawGolfCart(player) {
+    if (player.isLizard) {
+      this.drawMutantLizard(player);
+      return;
+    }
+
     const ctx = this.ctx;
     ctx.save();
 
@@ -565,6 +599,279 @@ class CartoonRenderer {
   }
 
   /**
+   * Draw SNOTZILLA: Giant Scaly Mutant Lizard with Massive Whipping Tail & Flamethrower Breath!
+   */
+  drawMutantLizard(player) {
+    const ctx = this.ctx;
+
+    // 1. Draw the ditched/abandoned steaming Golf Cart near the Radioactive Pond if present!
+    if (player.abandonedCart) {
+      const ac = player.abandonedCart;
+      ctx.save();
+      ctx.translate(ac.x, ac.y);
+      ctx.rotate(ac.angle);
+      ctx.globalAlpha = 0.85;
+      this.drawBoilBox(-21, -13, 42, 26, '#d6ccb8', this.palette.ink, 2.5, 1.0, 390);
+      this.drawBoilBox(4, -12, 17, 24, '#ffb300', this.palette.ink, 2, 0.8, 391);
+      ctx.restore();
+    }
+
+    // 2. Draw Roaring Flamethrower Fire Breath Cone in world space if active!
+    if (player.fireBreathTimer > 0) {
+      ctx.save();
+      ctx.translate(player.x, player.y - (player.z || 0));
+      ctx.rotate(player.angle);
+
+      const range = player.fireBreathRange || 230;
+      const spread = 58;
+      // Outer roaring orange-red flame cone
+      this.drawBoilPolygon(
+        [
+          [20, -6],
+          [range * 0.55, -spread * 0.65],
+          [range, -spread],
+          [range * 1.08, 0],
+          [range, spread],
+          [range * 0.55, spread * 0.65],
+          [20, 6]
+        ],
+        'rgba(255, 65, 20, 0.85)',
+        '#161311',
+        2.5,
+        3.8,
+        395
+      );
+      // Inner white-hot yellow core flame
+      this.drawBoilPolygon(
+        [
+          [22, -3],
+          [range * 0.72, -spread * 0.45],
+          [range * 0.85, 0],
+          [range * 0.72, spread * 0.45],
+          [22, 3]
+        ],
+        '#ffea00',
+        '#ff9100',
+        2,
+        2.8,
+        396
+      );
+      ctx.restore();
+    }
+
+    // 3. Draw Massive Whipping Segmented Lizard Tail in world space!
+    const segs = player.tailSegments || [];
+    for (let i = segs.length - 1; i >= 0; i--) {
+      const seg = segs[i];
+      const tRatio = 1 - i / segs.length; // Larger near base, tapering to spiked club tip
+      const r = 6 + tRatio * 13;
+
+      // Tail shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.beginPath();
+      ctx.ellipse(seg.x, seg.y + 5, r * 1.1, r * 0.8, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Scaly green tail segment
+      this.drawBoilEllipse(
+        seg.x,
+        seg.y - (player.z || 0) * tRatio,
+        r,
+        r * 0.88,
+        i % 2 === 0 ? '#4cbb17' : '#66e024',
+        this.palette.ink,
+        2.6,
+        1.1,
+        10,
+        400 + i
+      );
+
+      // Yellow-orange dorsal spike on each tail segment
+      this.drawBoilEllipse(
+        seg.x,
+        seg.y - (player.z || 0) * tRatio - 2,
+        r * 0.42,
+        r * 0.35,
+        '#ffbe1a',
+        this.palette.ink,
+        1.6,
+        0.6,
+        6,
+        420 + i
+      );
+    }
+
+    // 4. Draw Giant Mutant Lizard Body & Clawed Limbs
+    ctx.save();
+    const zOffset = player.z || 0;
+
+    // Radioactive green aura ring + shadow on ground
+    ctx.save();
+    ctx.translate(player.x, player.y + 5);
+    ctx.rotate(player.angle);
+    ctx.fillStyle = 'rgba(118, 255, 3, 0.25)';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 38, 28, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.beginPath();
+    ctx.ellipse(0, 2, 28, 20, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Forward direction chevron
+    this.drawBoilPolygon([[38, -8], [49, 0], [38, 8], [41, 0]], '#a4ff3b', '#161311', 2.2, 0.6, 430);
+    ctx.restore();
+
+    ctx.translate(player.x, player.y - zOffset);
+    ctx.rotate(player.angle);
+    ctx.scale(1.28, 1.28);
+
+    const walkCycle = Math.sin((player.walkPhase || 0) * 1.4) * 6;
+
+    // Stomping scaly hind legs & 3-toed claws
+    this.drawBoilBox(-12 - walkCycle * 0.5, -22, 12, 9, '#3a9410', this.palette.ink, 2.4, 0.9, 431);
+    this.drawBoilBox(-12 + walkCycle * 0.5, 13, 12, 9, '#3a9410', this.palette.ink, 2.4, 0.9, 432);
+
+    // Clawed front arms reaching forward
+    this.drawBoilBox(4 + walkCycle * 0.6, -20, 14, 7, '#4cbb17', this.palette.ink, 2.4, 0.9, 433);
+    this.drawBoilBox(4 - walkCycle * 0.6, 13, 14, 7, '#4cbb17', this.palette.ink, 2.4, 0.9, 434);
+
+    // Massive Scaly Lizard Torso + Shredded Cyan Caddie Bib
+    this.drawBoilEllipse(-2, 0, 20, 15, '#4cbb17', this.palette.ink, 3.0, 1.2, 12, 435);
+    this.drawBoilPolygon([[-8, -11], [10, -12], [6, 12], [-10, 10]], '#7be0ff', this.palette.ink, 2.2, 1.0, 436);
+
+    // Dorsal orange-yellow Godzilla spines down back
+    for (let s = -12; s <= 4; s += 8) {
+      this.drawBoilPolygon([[s - 4, 0], [s, -5], [s + 4, 0], [s, 5]], '#ffbe1a', this.palette.ink, 2.0, 0.7, 440 + s);
+    }
+
+    // Giant Reptile Snout & Jaws
+    this.drawBoilPolygon(
+      [
+        [8, -11],
+        [27, -8],
+        [31, 0],
+        [27, 8],
+        [8, 11]
+      ],
+      '#66e024',
+      this.palette.ink,
+      2.8,
+      1.1,
+      450
+    );
+
+    // Glowing Yellow Reptile Slit Eyes
+    this.drawBoilEllipse(16, -6, 4.5, 3, '#ffea00', this.palette.ink, 1.8, 0.5, 8, 451);
+    this.drawBoilEllipse(16, 6, 4.5, 3, '#ffea00', this.palette.ink, 1.8, 0.5, 8, 452);
+    ctx.fillStyle = '#d92b2b';
+    ctx.fillRect(15.5, -7.5, 2, 3);
+    ctx.fillRect(15.5, 4.5, 2, 3);
+
+    // Flickering Forked Tongue
+    if (player.fireBreathTimer <= 0 && Math.floor(Date.now() / 180) % 2 === 0) {
+      this.drawBoilLine(31, 0, 40, 0, '#ff2a1f', 2.2, 0.7, 453);
+      this.drawBoilLine(40, 0, 45, -4, '#ff2a1f', 1.8, 0.6, 454);
+      this.drawBoilLine(40, 0, 45, 4, '#ff2a1f', 1.8, 0.6, 455);
+    }
+
+    ctx.restore();
+  }
+
+  /**
+   * Draw COUNTRY CLUB KONG: Giant Gorilla Boss in a Torn Pink Argyle Sweater-Vest & Golf Visor!
+   */
+  drawKong(kong) {
+    const ctx = this.ctx;
+
+    // 1. Draw hurled golf carts / boulders in flight
+    if (kong.projectiles) {
+      kong.projectiles.forEach((proj, idx) => {
+        ctx.save();
+        ctx.fillStyle = 'rgba(0,0,0,0.32)';
+        ctx.beginPath();
+        ctx.ellipse(proj.x, proj.y + 6, 18, 12, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.translate(proj.x, proj.y - (proj.z || 0));
+        ctx.rotate(proj.angle || 0);
+        // Hurled crushed golf cart / country club boulder
+        this.drawBoilBox(-18, -12, 36, 24, '#efe3c8', this.palette.ink, 2.8, 1.2, 600 + idx);
+        this.drawBoilBox(-14, -9, 14, 18, '#d92b2b', this.palette.ink, 2, 0.9, 620 + idx);
+        ctx.restore();
+      });
+    }
+
+    ctx.save();
+    const zOffset = kong.z || 0;
+
+    // Giant ground shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.42)';
+    ctx.beginPath();
+    ctx.ellipse(kong.x, kong.y + 10, 44, 30, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.translate(kong.x, kong.y - zOffset);
+
+    if (kong.state === 'defeated') {
+      ctx.rotate(kong.ragdollAngle || 0.5);
+    } else {
+      ctx.rotate(kong.angle);
+    }
+
+    const chestBeat = kong.state === 'roar' ? Math.sin(Date.now() * 0.03) * 8 : Math.sin((kong.walkPhase || 0) * 1.2) * 6;
+    const furColor = kong.burnTimer > 0 ? '#8c3b2b' : '#3b281e';
+    const skinColor = '#5e4336';
+
+    // Massive Muscular Gorilla Arms & Giant Hairy Fists
+    this.drawBoilBox(-6 + chestBeat, -44, 28, 18, furColor, this.palette.ink, 3.2, 1.4, 650);
+    this.drawBoilEllipse(24 + chestBeat, -38, 14, 13, skinColor, this.palette.ink, 3.0, 1.2, 10, 651);
+
+    this.drawBoilBox(-6 - chestBeat, 26, 28, 18, furColor, this.palette.ink, 3.2, 1.4, 652);
+    this.drawBoilEllipse(24 - chestBeat, 38, 14, 13, skinColor, this.palette.ink, 3.0, 1.2, 10, 653);
+
+    // Hulking Gorilla Barrel Chest in a Torn Pastel-Pink Country Club Argyle Sweater-Vest!
+    this.drawBoilEllipse(-4, 0, 32, 28, furColor, this.palette.ink, 3.5, 1.5, 14, 654);
+    this.drawBoilPolygon(
+      [
+        [-22, -24],
+        [14, -22],
+        [18, 22],
+        [-22, 24]
+      ],
+      '#eb5e7b',
+      this.palette.ink,
+      3.0,
+      1.3,
+      655
+    );
+    // Argyle yellow diamond pattern on Kong's sweater vest
+    this.drawBoilPolygon([[-6, -12], [2, -6], [-6, 0], [-14, -6]], '#f7d53b', this.palette.ink, 1.8, 0.7, 656);
+    this.drawBoilPolygon([[-6, 2], [2, 8], [-6, 14], [-14, 8]], '#f7d53b', this.palette.ink, 1.8, 0.7, 657);
+
+    // Giant Angry Gorilla Head with Snarling Fangs & Tiny White Country Club Visor!
+    this.drawBoilEllipse(14, 0, 18, 17, furColor, this.palette.ink, 3.2, 1.3, 12, 660);
+    this.drawBoilEllipse(21, 0, 11, 13, skinColor, this.palette.ink, 2.5, 1.0, 10, 661);
+
+    // Bloodshot furious Kong eyes
+    this.drawBoilEllipse(19, -6, 4.5, 3.5, '#ffea00', this.palette.ink, 2, 0.5, 8, 662);
+    this.drawBoilEllipse(19, 6, 4.5, 3.5, '#ffea00', this.palette.ink, 2, 0.5, 8, 663);
+    ctx.fillStyle = '#d92b2b';
+    ctx.beginPath();
+    ctx.arc(20, -6, 1.8, 0, Math.PI * 2);
+    ctx.arc(20, 6, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Roaring Ape Jaws
+    this.drawBoilBox(24, -7, 8, 14, '#3b1518', this.palette.ink, 2.2, 0.9, 664);
+    this.drawBoilBox(25, -6, 3, 12, '#ffffff', this.palette.ink, 1.5, 0.5, 665);
+
+    // Tiny Crooked White Country Club Visor on top of Kong's dome!
+    this.drawBoilPolygon([[12, -11], [26, -8], [26, 8], [12, 11]], '#ffffff', this.palette.ink, 2.2, 0.8, 666);
+
+    ctx.restore();
+  }
+
+  /**
    * Draw Country Club Snob Golfer (with polo shirt, plaid pants, backswing indicator, or airborne flipping ragdoll!)
    */
   drawGolfer(g) {
@@ -719,7 +1026,7 @@ class CartoonRenderer {
   }
 
   /**
-   * Draw Ranger Buzz McVicker's High-Speed Turf Mower Boss Cart
+   * Draw Head Ranger Chuck's High-Speed Turf Mower Boss Cart
    */
   drawRanger(r) {
     const ctx = this.ctx;
@@ -751,7 +1058,7 @@ class CartoonRenderer {
     const sirenOn = Math.floor(Date.now() / 120) % 2 === 0;
     this.drawBoilEllipse(12, 0, 5, 5, sirenOn ? '#ff2a1f' : '#2979ff', this.palette.ink, 2, 0.8, 8, 506);
 
-    // Veiny purple-faced Ranger McVicker
+    // Veiny purple-faced Head Ranger
     this.drawBoilEllipse(-4, 0, 9, 9, '#d95b52', this.palette.ink, 2.4, 1.1, 10, 507);
     // Aviator shades
     this.drawBoilBox(1, -5, 4, 4, '#111', this.palette.ink, 1.5, 0.5, 508);

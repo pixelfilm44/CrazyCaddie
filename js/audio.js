@@ -10,7 +10,7 @@ class SoundSystem {
     this.musicPlaying = false;
     this.musicTimer = null;
     this.stepIndex = 0;
-    this.intensity = 1.0; // Increases when Ranger McVicker chases you
+    this.intensity = 1.0; // Increases when the Head Ranger chases you
     this.engineOsc = null;
     this.engineGain = null;
   }
@@ -101,7 +101,7 @@ class SoundSystem {
     this.musicPlaying = true;
     this.stepIndex = 0;
 
-    // 90s MTV grunge power-chord bassline (E2, G2, A2, A#2, B2 chromatic punk riff)
+    // 90s garage grunge power-chord bassline (E2, G2, A2, A#2, B2 chromatic punk riff)
     const bassNotes = [
       82.41, 82.41, 98.0, 82.41,
       110.0, 116.54, 110.0, 98.0,
@@ -278,17 +278,17 @@ class SoundSystem {
   }
 
   /**
-   * Synthesized Beavis & Butt-Head style nasal chuckles ("Uh-huh-huh", "Heh-heh-heh")
+   * Synthesized cartoon caddie chuckles
    * Uses formant-filtered glottal sawtooth pulses!
    */
-  playChuckle(style = 'butthead') {
+  playChuckle(style = 'low') {
     this.init();
     if (!this.ctx || this.muted) return;
     const now = this.ctx.currentTime;
 
-    const isBeavis = style === 'beavis';
-    const baseFreq = isBeavis ? 250 : 145;
-    const pulses = isBeavis ? [0, 0.09, 0.18, 0.28] : [0, 0.13, 0.26];
+    const isHigh = style === 'high';
+    const baseFreq = isHigh ? 250 : 145;
+    const pulses = isHigh ? [0, 0.09, 0.18, 0.28] : [0, 0.13, 0.26];
 
     pulses.forEach((offset, idx) => {
       const t = now + offset;
@@ -301,7 +301,7 @@ class SoundSystem {
       // Nasal formant filter
       const f1 = this.ctx.createBiquadFilter();
       f1.type = 'bandpass';
-      f1.frequency.value = isBeavis ? 1650 : 980;
+      f1.frequency.value = isHigh ? 1650 : 980;
       f1.Q.value = 4.5;
 
       const gain = this.ctx.createGain();
@@ -621,6 +621,111 @@ class SoundSystem {
       osc.start(t);
       osc.stop(t + 0.065);
     });
+  }
+
+  /**
+   * Radioactive Mutation Synth + Lizard Roar!
+   */
+  playMutation() {
+    this.init();
+    if (!this.ctx || this.muted) return;
+    const now = this.ctx.currentTime;
+
+    // Sci-fi radioactive warble
+    const osc = this.ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(110, now);
+    osc.frequency.exponentialRampToValueAtTime(620, now + 0.35);
+    osc.frequency.exponentialRampToValueAtTime(140, now + 0.75);
+
+    const lfo = this.ctx.createOscillator();
+    const lfoG = this.ctx.createGain();
+    lfo.frequency.value = 24;
+    lfoG.gain.value = 85;
+    lfo.connect(lfoG);
+    lfoG.connect(osc.frequency);
+
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0.36, now);
+    gain.gain.exponentialRampToValueAtTime(0.005, now + 0.78);
+
+    osc.connect(gain);
+    gain.connect(this.master);
+    lfo.start(now);
+    osc.start(now);
+    lfo.stop(now + 0.8);
+    osc.stop(now + 0.8);
+  }
+
+  /**
+   * Roaring Flamethrower Fire Breath Burst ("FWOOSH!")
+   */
+  playFireBreath() {
+    this.init();
+    if (!this.ctx || this.muted) return;
+    const now = this.ctx.currentTime;
+    const dur = 0.26;
+    const bufferSize = Math.floor(this.ctx.sampleRate * dur);
+    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    const noise = this.ctx.createBufferSource();
+    noise.buffer = buffer;
+
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(520, now);
+    filter.frequency.exponentialRampToValueAtTime(220, now + dur);
+    filter.Q.value = 0.9;
+
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0.32, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + dur);
+
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.master);
+    noise.start(now);
+  }
+
+  /**
+   * Deep Chest-Thumping Country Club Kong Gorilla Roar!
+   */
+  playKongRoar() {
+    this.init();
+    if (!this.ctx || this.muted) return;
+    const now = this.ctx.currentTime;
+
+    const osc1 = this.ctx.createOscillator();
+    const osc2 = this.ctx.createOscillator();
+    osc1.type = 'sawtooth';
+    osc2.type = 'triangle';
+    osc1.frequency.setValueAtTime(95, now);
+    osc1.frequency.linearRampToValueAtTime(140, now + 0.2);
+    osc1.frequency.exponentialRampToValueAtTime(58, now + 0.75);
+
+    osc2.frequency.setValueAtTime(142, now);
+    osc2.frequency.exponentialRampToValueAtTime(82, now + 0.75);
+
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 540;
+
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0.45, now);
+    gain.gain.exponentialRampToValueAtTime(0.008, now + 0.78);
+
+    osc1.connect(filter);
+    osc2.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.master);
+
+    osc1.start(now);
+    osc2.start(now);
+    osc1.stop(now + 0.8);
+    osc2.stop(now + 0.8);
   }
 }
 

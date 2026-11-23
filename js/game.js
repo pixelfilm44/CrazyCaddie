@@ -1,6 +1,6 @@
 /**
- * CRAZY CADDIE: FORE-HEAD TRAUMA (1994)
- * Main Game Controller, HUD, Dumpster Couch Shop, and MTV Episode Title / Game Over Screens.
+ * CRAZY CADDY CARNAGE (1994)
+ * Main Game Controller, HUD, Dumpster Couch Shop, and Episode Title / Game Over Screens.
  */
 
 class CrazyCaddieGame {
@@ -40,7 +40,7 @@ class CrazyCaddieGame {
     this.episode = 1;
     this.score = 0;
     this.highScore = 0;
-    this.disruption = 0; // 0 to 100% — at 70%+, Ranger Buzz McVicker spawns!
+    this.disruption = 0; // 0 to 100% — at 70%+, Head Ranger Chuck spawns!
     this.quota = 15;     // Balls needed to clear the current episode/shift
 
     this.world = new window.GolfCourseWorld(this.episode);
@@ -150,10 +150,19 @@ class CrazyCaddieGame {
     };
 
     // Bottom-right arcade action cluster
-    const hornBtn = { id: 'horn', cx: w - (compact ? 58 : 68), cy: h - (compact ? 66 : 74), r: rMain, label: 'HORN', color: '#f7d53b', fg: '#161311' };
+    const isLiz = this.player && this.player.isLizard;
+    const hornBtn = { id: 'horn', cx: w - (compact ? 58 : 68), cy: h - (compact ? 66 : 74), r: rMain, label: isLiz ? 'ROAR' : 'HORN', color: '#f7d53b', fg: '#161311' };
     const duckBtn = { id: 'duck', cx: w - (compact ? 136 : 154), cy: h - (compact ? 52 : 58), r: rSub, label: 'DUCK', color: '#73b3c9', fg: '#161311' };
     const turboBtn = { id: 'turbo', cx: w - (compact ? 52 : 60), cy: h - (compact ? 144 : 158), r: rSub, label: 'TURBO', color: '#a4ff3b', fg: '#161311' };
-    const fireBtn = { id: 'fire', cx: w - (compact ? 124 : 138), cy: h - (compact ? 124 : 136), r: rSub - 2, label: 'FIRE', color: '#ff4d3b', fg: '#ffffff' };
+    const fireBtn = {
+      id: 'fire',
+      cx: w - (compact ? 132 : 148),
+      cy: h - (compact ? 134 : 148),
+      r: isLiz ? rMain + 4 : rSub - 2,
+      label: isLiz ? 'FIRE!' : 'FIRE',
+      color: '#ff3b1f',
+      fg: '#ffea00'
+    };
 
     return { shopBtn, hornBtn, duckBtn, turboBtn, fireBtn };
   }
@@ -177,7 +186,11 @@ class CrazyCaddieGame {
           e.preventDefault();
           this.triggerAirhornHeckle();
         } else if (e.code === 'KeyF') {
-          this.fireBallCannon();
+          if (this.player.isLizard) {
+            this.triggerFireBreath();
+          } else {
+            this.fireBallCannon();
+          }
         } else if (e.code === 'KeyB' || e.code === 'Tab') {
           e.preventDefault();
           this.openShop();
@@ -233,10 +246,14 @@ class CrazyCaddieGame {
         return;
       }
       if (this.state === 'playing' && e.button === 0) {
-        if (this.isMobile && this.handleMobileOverlayTap(this.mouse.x, this.mouse.y, 'mouse')) {
+        if ((this.isMobile || this.player.isLizard) && this.handleMobileOverlayTap(this.mouse.x, this.mouse.y, 'mouse')) {
           return;
         }
-        this.fireBallCannon();
+        if (this.player.isLizard) {
+          this.triggerFireBreath();
+        } else {
+          this.fireBallCannon();
+        }
       }
     });
 
@@ -351,10 +368,14 @@ class CrazyCaddieGame {
       return true;
     }
     if (
-      this.player.upgrades.cannon > 0 &&
-      Math.hypot(tx - btns.fireBtn.cx, ty - btns.fireBtn.cy) <= btns.fireBtn.r + 8
+      (this.player.isLizard || this.player.upgrades.cannon > 0) &&
+      Math.hypot(tx - btns.fireBtn.cx, ty - btns.fireBtn.cy) <= btns.fireBtn.r + 10
     ) {
-      this.fireBallCannon(true);
+      if (this.player.isLizard) {
+        this.triggerFireBreath();
+      } else {
+        this.fireBallCannon(true);
+      }
       return true;
     }
 
@@ -410,7 +431,7 @@ class CrazyCaddieGame {
   startNewGame() {
     window.sound.init();
     window.sound.startMusic();
-    window.sound.playChuckle('butthead');
+    window.sound.playChuckle('low');
 
     this.episode = 1;
     this.score = 0;
@@ -420,7 +441,7 @@ class CrazyCaddieGame {
     this.player.hasHelmet = true; // Start with 1 rusty helmet so first mistake is hilarious, not instant death!
     this.setupEpisode(1, true);
     this.state = 'playing';
-    this.player.say('UH-HUH-HUH, LET\'S STEAL SOME BALLS!');
+    this.player.say('LET\'S ROB THIS COUNTRY CLUB BLIND!');
   }
 
   setupEpisode(ep, fullReset = false) {
@@ -437,6 +458,7 @@ class CrazyCaddieGame {
     this.camera.y = Math.max(0, Math.min(this.world.height - viewH, this.player.y - viewH / 2));
     this.disruption = Math.min(35, (ep - 1) * 12);
     this.ranger = null;
+    this.kong = null;
 
     this.golfers = [];
     this.balls = [];
@@ -531,11 +553,11 @@ class CrazyCaddieGame {
     window.sound.playAirhorn(upgraded);
 
     const heckles = [
-      'YOU SUCK, DUDE! BWAAAAH!',
-      'NICE PANTS, DORK!',
-      'YOUR WIFE IS IN MY CART!',
-      'MISS IT, ASSWIPE! UH-HUH-HUH!',
-      'FORE-SKIN! HEH-HEH!'
+      'CHoke ON IT, RICH BOY! BWAAAAH!',
+      'NICE PLAID PANTS, LOSER!',
+      'YOUR CADDIE QUIT!',
+      'SHANK IT INTO THE WOODS!',
+      'SLICE IT, SNOWFLAKE!'
     ];
     p.say(heckles[Math.floor(Math.random() * heckles.length)], 1.8);
 
@@ -567,7 +589,7 @@ class CrazyCaddieGame {
     }
 
     if (shankCount > 0) {
-      setTimeout(() => window.sound.playChuckle('beavis'), 250);
+      setTimeout(() => window.sound.playChuckle('high'), 250);
     }
   }
 
@@ -598,7 +620,7 @@ class CrazyCaddieGame {
 
     let aimAngle = p.angle;
     if (autoAim || this.isTouchDevice) {
-      // Auto-aim at closest active Golfer or Ranger McVicker within range!
+      // Auto-aim at closest active Golfer or Head Ranger within range!
       let bestDist = 520;
       let target = null;
       if (this.ranger && this.ranger.stunTimer <= 0) {
@@ -646,11 +668,119 @@ class CrazyCaddieGame {
   }
 
   /**
+   * Spawn COUNTRY CLUB KONG when Snotty mutates into the Giant Lizard!
+   */
+  spawnKong() {
+    if (this.kong && this.kong.state !== 'defeated') return;
+    const kx = Math.max(240, Math.min(this.world.width - 240, this.player.x - 240));
+    const ky = Math.max(240, Math.min(this.world.height - 240, this.player.y - 180));
+    this.kong = new window.CountryClubKong(kx, ky);
+    if (window.sound.playKongRoar) window.sound.playKongRoar();
+    this.camera.shake = 22;
+    this.addFloatingText(this.player.x, this.player.y - 60, 'ALERT: THE GOLF CLUB CALLED IN COUNTRY CLUB KONG!!', '#ff2a1f');
+  }
+
+  /**
+   * Roaring Lizard Flamethrower Fire Breath! (Triggered by the FIRE! button or [F] / Click)
+   */
+  triggerFireBreath() {
+    const p = this.player;
+    if (!p.isLizard) return;
+
+    p.fireBreathTimer = 0.48;
+    if (window.sound.playFireBreath) window.sound.playFireBreath();
+    if (Math.random() < 0.45) window.sound.playChuckle('high');
+
+    const fireQuotes = [
+      'EXTRA CRISPY COUNTRY CLUB!',
+      'BURN THE FAIRWAY DOWN!',
+      'ROAST APE COMING UP!',
+      'BBQ ON THE 9TH GREEN!'
+    ];
+    if (p.speechTimer <= 0.4) {
+      p.say(fireQuotes[Math.floor(Math.random() * fireQuotes.length)], 1.6);
+    }
+
+    const range = p.fireBreathRange || 235;
+    const fx = Math.cos(p.angle);
+    const fy = Math.sin(p.angle);
+
+    // Spawn roaring fire particles along the flame cone
+    for (let i = 0; i < 14; i++) {
+      const dist = 25 + Math.random() * (range - 25);
+      const spread = (Math.random() - 0.5) * 0.52;
+      const a = p.angle + spread;
+      this.particles.push({
+        x: p.x + Math.cos(a) * dist,
+        y: p.y + Math.sin(a) * dist,
+        vx: Math.cos(a) * (160 + Math.random() * 140),
+        vy: Math.sin(a) * (160 + Math.random() * 140),
+        color: i % 2 === 0 ? '#ffea00' : '#ff3b1f',
+        size: 5 + Math.random() * 5,
+        life: 0.25 + Math.random() * 0.2
+      });
+    }
+
+    // Helper: check if point (tx, ty) is inside the lizard's forward flame cone
+    const inFlameCone = (tx, ty, extraR = 24) => {
+      const dx = tx - p.x;
+      const dy = ty - p.y;
+      const d = Math.hypot(dx, dy);
+      if (d > range + extraR) return false;
+      if (d < 28) return true;
+      const dot = (dx / d) * fx + (dy / d) * fy;
+      return dot > 0.72; // ~44 deg half-angle cone
+    };
+
+    // 1. Torch Golfers in the flame cone!
+    for (const g of this.golfers) {
+      if (g.state !== 'ragdoll' && inFlameCone(g.x, g.y, 22)) {
+        g.knockOut(fx * 340, fy * 340, this, 'CRISPY SNOB! +250');
+        g.say('AAARGH! MY SWEATER VEST IS ON FIRE!!', 2.4);
+      }
+    }
+
+    // 2. Incinerate Props (Bushes, Small Trees, Golf Bags, Port-a-Potties, Wedding Cake)
+    for (const prop of this.world.props) {
+      if (prop.intact && inFlameCone(prop.x, prop.y, prop.r)) {
+        prop.intact = false;
+        prop.vx = fx * 220 + (Math.random() - 0.5) * 80;
+        prop.vy = fy * 220 + (Math.random() - 0.5) * 80;
+        prop.vz = 130;
+        prop.spin = 12;
+        this.score += prop.points;
+        this.disruption = Math.min(100, this.disruption + 8);
+        this.spawnParticles(prop.x, prop.y, '#ff5722', 12);
+        this.addFloatingText(prop.x, prop.y - 26, `TORCHED! +${prop.points}`, '#ffea00');
+      }
+    }
+
+    // 3. Torch Head Ranger Chuck
+    if (this.ranger && inFlameCone(this.ranger.x, this.ranger.y, 32)) {
+      this.ranger.stunTimer = 4.0;
+      this.score += 200;
+      this.addFloatingText(this.ranger.x, this.ranger.y - 30, 'RANGER ROASTED! +200', '#ffea00');
+    }
+
+    // 4. Scorch COUNTRY CLUB KONG!
+    if (this.kong && this.kong.state !== 'defeated' && inFlameCone(this.kong.x, this.kong.y, 48)) {
+      this.kong.takeDamage(20, p.x, p.y, this, 'KONG TORCHED!');
+    }
+  }
+
+  /**
    * Called when an incoming 140mph golf ball nails Snotty at head height!
    */
   onPlayerHeadHit(ball) {
     const p = this.player;
     if (p.hurtTimer > 0) return;
+
+    // Giant Mutant Lizard scales deflect regular golf balls harmlessly!
+    if (p.isLizard) {
+      window.sound.playBallPickup(2);
+      this.addFloatingText(p.x, p.y - 36, 'PLINK! BOUNCED OFF LIZARD SCALES!', '#a4ff3b');
+      return;
+    }
 
     this.camera.shake = 18;
     this.vhsGlitchTimer = 0.45;
@@ -673,7 +803,7 @@ class CrazyCaddieGame {
       window.sound.playHeadBonk(false);
       this.addFloatingText(p.x, p.y - 36, 'CLANG! HELMET SAVED YOU!', '#f7d53b');
       this.spawnParticles(p.x, p.y, '#8f999e', 12);
-      p.say('HEH-HEH, EARS RINGING!');
+      p.say('CLANG! EARS ARE RINGING!');
       return;
     }
 
@@ -699,7 +829,7 @@ class CrazyCaddieGame {
   openShop() {
     this.state = 'shop';
     window.sound.updateEngine(0, false, false, true);
-    window.sound.playChuckle('beavis');
+    window.sound.playChuckle('high');
   }
 
   closeShop() {
@@ -708,7 +838,7 @@ class CrazyCaddieGame {
       this.episode++;
       this.quota = Math.floor(this.quota * 1.3);
       this.setupEpisode(this.episode, false);
-      this.player.say(`EPISODE ${this.episode}: MORE RICH DORKS TO ROB!`);
+      this.player.say(`EPISODE ${this.episode}: MORE SNOBS TO ROB!`);
     }
     this.state = 'playing';
   }
@@ -741,7 +871,7 @@ class CrazyCaddieGame {
 
     p.walletBalls -= item.cost;
     window.sound.playBallPickup(4);
-    window.sound.playChuckle(Math.random() < 0.5 ? 'butthead' : 'beavis');
+    window.sound.playChuckle(Math.random() < 0.5 ? 'low' : 'high');
   }
 
   handleShopClick(mx, my) {
@@ -783,7 +913,7 @@ class CrazyCaddieGame {
     this.state = 'gameover';
     if (this.score > this.highScore) this.highScore = this.score;
     window.sound.updateEngine(0, false, false, true);
-    window.sound.playChuckle('butthead');
+    window.sound.playChuckle('low');
   }
 
   update(dt) {
@@ -798,7 +928,7 @@ class CrazyCaddieGame {
     // Update music tempo based on Disruption / Ranger chase
     window.sound.intensity = 1.0 + (this.disruption / 100) * 0.35 + (this.ranger ? 0.15 : 0);
 
-    // Spawn Ranger Buzz McVicker when Disruption reaches 70%!
+    // Spawn Head Ranger Chuck when Disruption reaches 70%!
     if (this.disruption >= 70 && !this.ranger) {
       this.ranger = {
         x: this.world.clubhouse.x + 220,
@@ -808,11 +938,11 @@ class CrazyCaddieGame {
         angle: Math.PI / 2,
         stunTimer: 0
       };
-      this.addFloatingText(this.player.x, this.player.y - 50, 'WARNING: RANGER BUZZ McVICKER DEPLOYED THE TURF MOWER!', '#ff2a1f');
+      this.addFloatingText(this.player.x, this.player.y - 50, 'WARNING: RANGER CHUCK DEPLOYED THE TURF MOWER!', '#ff2a1f');
       window.sound.playScream(240);
     }
 
-    // Update Ranger Buzz McVicker's Turf Mower
+    // Update Head Ranger Chuck's Turf Mower
     if (this.ranger) {
       const r = this.ranger;
       if (r.stunTimer > 0) {
@@ -833,7 +963,7 @@ class CrazyCaddieGame {
             r.stunTimer = 3.5;
             b.inFlight = false;
             this.score += 300;
-            this.addFloatingText(r.x, r.y - 30, 'RANGER McVICKER STUNNED! +300', '#f7d53b');
+            this.addFloatingText(r.x, r.y - 30, 'RANGER STUNNED! +300', '#f7d53b');
             window.sound.playHeadBonk(false);
           }
         }
@@ -858,7 +988,7 @@ class CrazyCaddieGame {
       }
     }
 
-    // Update Golfers & check Cart-vs-Golfer slapstick ramming
+    // Update Golfers & check Cart/Lizard/Tail-vs-Golfer slapstick ramming
     const p = this.player;
     const cartSpeed = Math.hypot(p.vx, p.vy);
     for (const g of this.golfers) {
@@ -866,11 +996,41 @@ class CrazyCaddieGame {
 
       if (g.state !== 'ragdoll' && p.z < 18) {
         const d = Math.hypot(p.x - g.x, p.y - g.y);
-        if (d < 32 && cartSpeed > 75) {
-          g.knockOut(p.vx, p.vy, this);
+        if (d < 34 && (cartSpeed > 75 || p.isLizard)) {
+          const hitVx = p.isLizard && cartSpeed < 160 ? Math.cos(p.angle) * 260 : p.vx;
+          const hitVy = p.isLizard && cartSpeed < 160 ? Math.sin(p.angle) * 260 : p.vy;
+          g.knockOut(hitVx, hitVy, this, p.isLizard ? 'LIZARD STOMP! +250' : null);
           this.camera.shake = Math.min(20, 6 + cartSpeed * 0.035);
-          if (Math.random() < 0.7) window.sound.playChuckle(cartSpeed > 280 ? 'beavis' : 'butthead');
-          p.say(cartSpeed > 280 ? 'HEH-HEH! FLY, FATASS, FLY!' : 'UH-HUH-HUH! ROADKILL!');
+          if (Math.random() < 0.7) window.sound.playChuckle(cartSpeed > 280 || p.isLizard ? 'high' : 'low');
+          p.say(p.isLizard ? 'LIZARD SMASH!' : cartSpeed > 280 ? 'HAVE A NICE FLIGHT, SNOB!' : 'FORE COMING THROUGH!');
+        } else if (p.isLizard && p.tailSegments) {
+          // Check Whipping Lizard Tail segments against Golfer!
+          for (let s = 2; s < p.tailSegments.length; s++) {
+            const seg = p.tailSegments[s];
+            if (Math.hypot(seg.x - g.x, seg.y - g.y) < 24) {
+              const tvx = seg.vx * 1.4 + (g.x - p.x) * 3.2;
+              const tvy = seg.vy * 1.4 + (g.y - p.y) * 3.2;
+              g.knockOut(tvx, tvy, this, 'TAIL WHIPPED! +275');
+              this.camera.shake = 12;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    // Update COUNTRY CLUB KONG Boss Fight & Tail-Whip vs. Kong!
+    if (this.kong) {
+      this.kong.update(dt, this.world, this);
+      if (this.kong.state !== 'defeated' && p.isLizard && p.tailSegments) {
+        for (let s = 3; s < p.tailSegments.length; s++) {
+          const seg = p.tailSegments[s];
+          const whipSpeed = Math.hypot(seg.vx, seg.vy);
+          if (whipSpeed > 35 && Math.hypot(seg.x - this.kong.x, seg.y - this.kong.y) < 46) {
+            this.kong.takeDamage(15, seg.x, seg.y, this, 'TAIL WHIPPED KONG!');
+            this.camera.shake = 14;
+            break;
+          }
         }
       }
     }
@@ -960,12 +1120,12 @@ class CrazyCaddieGame {
           p.vy *= 0.88;
           window.sound.playCrash('thud');
           if (window.sound.playWaterSplash) window.sound.playWaterSplash();
-          window.sound.playChuckle('beavis');
+          window.sound.playChuckle('high');
           this.disruption = Math.min(100, this.disruption + 16);
           this.spawnParticles(prop.x, prop.y, '#29b6f6', 20);
           this.spawnParticles(prop.x, prop.y, '#ffffff', 8);
           this.addFloatingText(prop.x, prop.y - 32, `PORT-A-JOHN NUKED! +${prop.points}`, '#29b6f6');
-          p.say('HEH-HEH! BLUE WATER EVERYWHERE!');
+          p.say('BLUE WATER TSUNAMI!');
 
           if (prop.occupied) {
             const victim = new window.SnobGolfer(
@@ -984,7 +1144,7 @@ class CrazyCaddieGame {
           this.camera.shake = 12;
           this.disruption = Math.min(100, this.disruption + 15);
           window.sound.playCrash(prop.type === 'champagne_table' ? 'glass' : 'thud');
-          window.sound.playChuckle('beavis');
+          window.sound.playChuckle('high');
           this.addFloatingText(prop.x, prop.y - 30, `${prop.name} WRECKED! +${prop.points}`, '#ff4d3b');
           this.spawnParticles(prop.x, prop.y, '#fff8f0', 16);
 
@@ -1076,7 +1236,7 @@ class CrazyCaddieGame {
           // Check if quota reached — notify player they can hit Dumpster Couch [B] for Episode clear!
           if (p.ballsCarried >= this.quota && p.ballsCarried - b.value < this.quota) {
             this.addFloatingText(p.x, p.y - 50, 'QUOTA MET! PRESS [B]!', '#a4ff3b');
-            window.sound.playChuckle('butthead');
+            window.sound.playChuckle('low');
           }
           continue;
         }
@@ -1183,14 +1343,28 @@ class CrazyCaddieGame {
       }
     }
 
-    // 4. Draw Ranger Buzz McVicker's Turf Mower
+    // 4. Draw Head Ranger Chuck's Turf Mower
     if (this.ranger) {
       this.renderer.drawRanger(this.ranger);
       const rLabel = this.ranger.stunTimer > 0 ? 'STUNNED! ($#%@!)' : 'RANGER: "I\'LL MOW YOUR ASS!"';
       this.renderer.drawSpeechBubble(this.ranger.x, this.ranger.y - 28, rLabel, '#d92b2b', '#ffffff');
     }
 
-    // 5. Draw Snotty's Golf Cart
+    // 4b. Draw COUNTRY CLUB KONG Gorilla Boss!
+    if (this.kong) {
+      this.renderer.drawKong(this.kong);
+      if (this.kong.speechTimer > 0) {
+        this.renderer.drawSpeechBubble(
+          this.kong.x,
+          this.kong.y - 48 - (this.kong.z || 0),
+          this.kong.speechText,
+          '#eb5e7b',
+          '#ffffff'
+        );
+      }
+    }
+
+    // 5. Draw Snotty's Golf Cart (or SNOTZILLA Mutant Lizard with Whipping Tail & Fire Breath!)
     this.renderer.drawGolfCart(this.player);
     if (this.player.speechTimer > 0) {
       this.renderer.drawSpeechBubble(this.player.x, this.player.y - 34 - this.player.z, this.player.speechText, '#f7d53b', '#161311');
@@ -1224,7 +1398,7 @@ class CrazyCaddieGame {
 
     ctx.restore();
 
-    // Draw 90s MTV Cartoon HUD
+    // Draw 90s Cartoon HUD
     this.drawHUD();
 
     if (this.state === 'shop') {
@@ -1250,7 +1424,8 @@ class CrazyCaddieGame {
       ducking: p.ducking,
       talking: p.speechTimer > 0,
       hasHelmet: p.hasHelmet,
-      hurtTimer: p.hurtTimer
+      hurtTimer: p.hurtTimer,
+      isLizard: p.isLizard
     });
 
     const statsX = pad + portSize + 6;
@@ -1399,27 +1574,46 @@ class CrazyCaddieGame {
       ctx.fillText(this.isMobile ? 'FORE! TAP DUCK!' : 'FORE! DUCK [C]!', w / 2, alY + 21);
     }
 
-    // 4. Draw On-Screen Multi-Touch Virtual Controls on Mobile, or Compact Bottom Pill on Desktop
-    if (this.isMobile && this.state === 'playing') {
+    // 3b. COUNTRY CLUB KONG Boss Health Bar (when Kong is on the course!)
+    if (this.kong && this.kong.state !== 'defeated') {
+      const kW = compact ? 210 : 280;
+      const kX = w / 2 - kW / 2;
+      const kY = compact ? 82 : 66;
+      this.renderer.drawBoilBox(kX, kY, kW, 38, 'rgba(38, 18, 24, 0.94)', '#eb5e7b', 3, 1.2, 740);
+      ctx.font = `900 ${compact ? 12 : 14}px ${fontStack}`;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ffea00';
+      ctx.fillText(`COUNTRY CLUB KONG: ${Math.ceil(this.kong.hp)}%`, w / 2, kY + 16);
+      ctx.fillStyle = '#261419';
+      ctx.fillRect(kX + 12, kY + 22, kW - 24, 9);
+      ctx.fillStyle = '#ff2a1f';
+      ctx.fillRect(kX + 12, kY + 22, Math.max(4, ((kW - 24) * this.kong.hp) / this.kong.maxHp), 9);
+    }
+
+    // 4. Draw On-Screen Multi-Touch Virtual Controls on Mobile (or FIRE! button when Lizard on Desktop!)
+    if ((this.isMobile || p.isLizard) && this.state === 'playing') {
       this.drawMobileControls();
-    } else if (!this.isMobile) {
+    }
+    if (!this.isMobile) {
       const botW = Math.min(580, w - 28);
       const botX = (w - botW) / 2;
       const botY = h - 42;
       this.renderer.drawBoilBox(botX, botY, botW, 32, 'rgba(20, 17, 15, 0.9)', '#161311', 2.2, 0.9, 710);
       ctx.font = `900 13px ${fontStack}`;
-      ctx.fillStyle = p.ballsCarried >= this.quota ? '#a4ff3b' : '#ffffff';
+      ctx.fillStyle = p.ballsCarried >= this.quota ? '#a4ff3b' : p.isLizard ? '#ffea00' : '#ffffff';
       ctx.textAlign = 'center';
       const label =
         p.ballsCarried >= this.quota
           ? 'QUOTA MET! PRESS [B] FOR NEXT EPISODE & UPGRADES!'
+          : p.isLizard
+          ? '[WASD] Stomp & Whip Tail  •  [F / CLICK / FIRE! BTN] Breathe Fire  •  [SPACE] Roar  •  [B] Shop'
           : `[WASD] Drive  •  [SPACE] Horn  •  [C] Duck  •  [SHIFT] Turbo  •  [B] Shop (${p.walletBalls})`;
       ctx.fillText(label, w / 2, botY + 21);
     }
   }
 
   /**
-   * Draw Hand-Inked Boiling Virtual Thumbstick & Action Buttons for Mobile Players
+   * Draw Hand-Inked Boiling Virtual Thumbstick & Action Buttons (plus prominent FIRE! button when mutated into Lizard!)
    */
   drawMobileControls() {
     const ctx = this.ctx;
@@ -1428,52 +1622,54 @@ class CrazyCaddieGame {
     const fontStack = '"Trebuchet MS", "Arial Black", system-ui, -apple-system, sans-serif';
 
     ctx.save();
-    // 1. Virtual Thumbstick (Bottom-Left)
-    ctx.globalAlpha = tc.stickActive ? 0.9 : 0.65;
-    this.renderer.drawBoilEllipse(
-      tc.stickBaseX,
-      tc.stickBaseY,
-      46,
-      46,
-      'rgba(20, 17, 15, 0.72)',
-      '#f3e5c8',
-      2.5,
-      1.1,
-      14,
-      950
-    );
-    ctx.strokeStyle = 'rgba(243, 229, 200, 0.35)';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(tc.stickBaseX - 28, tc.stickBaseY);
-    ctx.lineTo(tc.stickBaseX + 28, tc.stickBaseY);
-    ctx.moveTo(tc.stickBaseX, tc.stickBaseY - 28);
-    ctx.lineTo(tc.stickBaseX, tc.stickBaseY + 28);
-    ctx.stroke();
+    if (this.isMobile) {
+      // 1. Virtual Thumbstick (Bottom-Left)
+      ctx.globalAlpha = tc.stickActive ? 0.9 : 0.65;
+      this.renderer.drawBoilEllipse(
+        tc.stickBaseX,
+        tc.stickBaseY,
+        46,
+        46,
+        'rgba(20, 17, 15, 0.72)',
+        '#f3e5c8',
+        2.5,
+        1.1,
+        14,
+        950
+      );
+      ctx.strokeStyle = 'rgba(243, 229, 200, 0.35)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(tc.stickBaseX - 28, tc.stickBaseY);
+      ctx.lineTo(tc.stickBaseX + 28, tc.stickBaseY);
+      ctx.moveTo(tc.stickBaseX, tc.stickBaseY - 28);
+      ctx.lineTo(tc.stickBaseX, tc.stickBaseY + 28);
+      ctx.stroke();
 
-    // Draggable Thumb Knob
-    this.renderer.drawBoilEllipse(
-      tc.stickKnobX,
-      tc.stickKnobY,
-      22,
-      22,
-      '#f7d53b',
-      '#161311',
-      2.8,
-      0.9,
-      10,
-      951
-    );
-    if (!tc.stickActive) {
-      ctx.font = `900 10px ${fontStack}`;
-      ctx.fillStyle = '#161311';
-      ctx.textAlign = 'center';
-      ctx.fillText('STEER', tc.stickKnobX, tc.stickKnobY + 3.5);
+      // Draggable Thumb Knob
+      this.renderer.drawBoilEllipse(
+        tc.stickKnobX,
+        tc.stickKnobY,
+        22,
+        22,
+        '#f7d53b',
+        '#161311',
+        2.8,
+        0.9,
+        10,
+        951
+      );
+      if (!tc.stickActive) {
+        ctx.font = `900 10px ${fontStack}`;
+        ctx.fillStyle = '#161311';
+        ctx.textAlign = 'center';
+        ctx.fillText('STEER', tc.stickKnobX, tc.stickKnobY + 3.5);
+      }
     }
 
-    // 2. Action Buttons (Bottom-Right: HORN, DUCK, TURBO, and FIRE if cannon owned)
-    const actionList = [btns.hornBtn, btns.duckBtn, btns.turboBtn];
-    if (this.player.upgrades.cannon > 0) {
+    // 2. Action Buttons (Bottom-Right: HORN, DUCK, TURBO on mobile, plus blazing FIRE! button when Lizard or Cannon owned)
+    const actionList = this.isMobile ? [btns.hornBtn, btns.duckBtn, btns.turboBtn] : [];
+    if (this.player.isLizard || (this.isMobile && this.player.upgrades.cannon > 0)) {
       actionList.push(btns.fireBtn);
     }
 
@@ -1481,22 +1677,29 @@ class CrazyCaddieGame {
       const pressed =
         (b.id === 'duck' && tc.duck) ||
         (b.id === 'turbo' && tc.turbo) ||
-        (b.id === 'horn' && this.player.airhornCooldown > 1.2);
-      ctx.globalAlpha = pressed ? 0.98 : 0.82;
+        (b.id === 'horn' && this.player.airhornCooldown > 1.2) ||
+        (b.id === 'fire' && this.player.fireBreathTimer > 0);
+      ctx.globalAlpha = pressed ? 1.0 : 0.88;
       const r = pressed ? b.r * 0.92 : b.r;
+
+      // Extra flame halo around the Lizard FIRE! button
+      if (b.id === 'fire' && this.player.isLizard) {
+        this.renderer.drawBoilEllipse(b.cx, b.cy, r + 6, r + 6, 'rgba(255, 234, 0, 0.35)', '#ffea00', 2.2, 1.5, 12, 975);
+      }
+
       this.renderer.drawBoilEllipse(b.cx, b.cy, r, r, b.color, '#161311', 2.8, 1.0, 12, 960 + idx);
 
-      ctx.font = `900 ${b.r > 32 ? 13 : 11}px ${fontStack}`;
+      ctx.font = `900 ${b.r > 32 ? 14 : 11}px ${fontStack}`;
       ctx.fillStyle = b.fg;
       ctx.textAlign = 'center';
-      ctx.fillText(b.label, b.cx, b.cy + 4.5);
+      ctx.fillText(b.label, b.cx, b.cy + 5);
     });
 
     ctx.restore();
   }
 
   /**
-   * 1994 MTV Episode Title Card Screen (Crisp Mobile & Desktop Typography)
+   * 1994 Episode Title Card Screen (Crisp Mobile & Desktop Typography)
    */
   drawTitleScreen() {
     const ctx = this.ctx;
@@ -1526,13 +1729,13 @@ class CrazyCaddieGame {
 
     const titleAvailW = cardW - (pSize + pPad + 10) * 2;
     ctx.textAlign = 'center';
-    ctx.font = `900 ${narrow ? 28 : 44}px ${fontStack}`;
+    ctx.font = `900 ${narrow ? 24 : 38}px ${fontStack}`;
     ctx.fillStyle = '#f7d53b';
     ctx.strokeStyle = '#161311';
     ctx.lineWidth = 5;
     ctx.lineJoin = 'round';
-    ctx.strokeText('CRAZY CADDIE', w / 2, cy + (narrow ? 52 : 76), titleAvailW);
-    ctx.fillText('CRAZY CADDIE', w / 2, cy + (narrow ? 52 : 76), titleAvailW);
+    ctx.strokeText('CRAZY CADDY CARNAGE', w / 2, cy + (narrow ? 52 : 76), titleAvailW);
+    ctx.fillText('CRAZY CADDY CARNAGE', w / 2, cy + (narrow ? 52 : 76), titleAvailW);
 
     ctx.font = `900 ${narrow ? 13 : 19}px ${fontStack}`;
     ctx.fillStyle = '#a4ff3b';
@@ -1628,7 +1831,7 @@ class CrazyCaddieGame {
       ctx.font = `bold 13px ${fontStack}`;
       ctx.fillStyle = '#3b2f2a';
       const couchTalk = [
-        '"Heh-heh, trade me',
+        '"Psst, trade me your',
         'stolen golf balls for',
         'helmets & potato guns!',
         'Tap or press [1]-[7]!"'
@@ -1728,7 +1931,7 @@ class CrazyCaddieGame {
     this.renderer.drawBoilBox(cx + 24, cy + 192, cardW - 48, 102, '#fff7e0', '#161311', 3, 1.2, 915);
     ctx.font = `900 ${narrow ? 14 : 17}px ${fontStack}`;
     ctx.fillStyle = '#161311';
-    ctx.fillText('"Uh-huh-huh... right in the forehead. Cool."', w / 2, cy + 226, cardW - 68);
+    ctx.fillText('"Dude... that 3-wood left a dent in your forehead."', w / 2, cy + 226, cardW - 68);
 
     ctx.font = `900 ${narrow ? 20 : 24}px ${fontStack}`;
     ctx.fillStyle = '#2d4c1e';

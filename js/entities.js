@@ -1,6 +1,6 @@
 /**
- * CRAZY CADDIE: Entities — Player Golf Cart, Snob Golfers, 3D Arcing Golf Balls,
- * Ranger Buzz McVicker's Turf Mower, and Slapstick Ragdolls / Comic Floating Text.
+ * CRAZY CADDY CARNAGE: Entities — Player Golf Cart & Mutant Lizard, Snob Golfers, 3D Arcing Golf Balls,
+ * Head Ranger Chuck's Turf Mower, Country Club Kong, and Slapstick Ragdolls.
  */
 
 class PlayerCart {
@@ -42,8 +42,97 @@ class PlayerCart {
     this.waterToxic = false;
     this.waterBobPhase = 0;
 
+    // Radioactive Mutant Lizard ("SNOTZILLA") state!
+    this.isLizard = false;
+    this.tailSegments = [];
+    this.fireBreathTimer = 0;
+    this.fireBreathRange = 235;
+    this.walkPhase = 0;
+    this.abandonedCart = null;
+
     this.speechText = '';
     this.speechTimer = 0;
+  }
+
+  mutateIntoLizard(game, pond) {
+    if (this.isLizard) return;
+    this.isLizard = true;
+    this.inWater = false;
+    this.lumps = 0; // Radioactive ooze heals all skull lumps!
+    this.concussionSpin = 0;
+
+    // Ditch the golf cart at the edge of the radioactive pond!
+    this.abandonedCart = {
+      x: this.x - Math.cos(this.angle) * 28,
+      y: this.y - Math.sin(this.angle) * 28,
+      angle: this.angle + 0.35
+    };
+
+    // Build 8 connected Whipping Lizard Tail segments trailing behind Snotzilla
+    this.tailSegments = [];
+    const backX = -Math.cos(this.angle);
+    const backY = -Math.sin(this.angle);
+    for (let i = 0; i < 8; i++) {
+      this.tailSegments.push({
+        x: this.x + backX * (18 + i * 13),
+        y: this.y + backY * (18 + i * 13),
+        vx: 0,
+        vy: 0
+      });
+    }
+
+    if (window.sound.playMutation) window.sound.playMutation();
+    setTimeout(() => window.sound.playChuckle('high'), 350);
+
+    game.camera.shake = 18;
+    game.spawnParticles(this.x, this.y, '#a4ff3b', 28);
+    game.spawnParticles(this.x, this.y, '#ffea00', 14);
+    game.addFloatingText(this.x, this.y - 45, 'MUTATED INTO SNOTZILLA! PRESS [FIRE!] TO TORCH!', '#a4ff3b');
+    this.say('ROAAAR! I\'M A GIANT FIRE-BREATHING LIZARD!', 3.2);
+
+    // The panicked Golf Club immediately calls in COUNTRY CLUB KONG!
+    if (game.spawnKong) {
+      setTimeout(() => game.spawnKong(), 1400);
+    }
+  }
+
+  updateTail(dt, angularVel) {
+    if (!this.isLizard || !this.tailSegments.length) return;
+    let leadX = this.x - Math.cos(this.angle) * 16;
+    let leadY = this.y - Math.sin(this.angle) * 16;
+    const spacing = 13.5;
+
+    // Perpendicular vector for tail-whip impulse when turning!
+    const perpX = -Math.sin(this.angle);
+    const perpY = Math.cos(this.angle);
+
+    for (let i = 0; i < this.tailSegments.length; i++) {
+      const seg = this.tailSegments[i];
+      // Add whip momentum proportional to turn rate & distance along tail
+      const whipForce = -angularVel * (i + 1) * 32;
+      seg.vx = (seg.vx + perpX * whipForce * dt) * Math.pow(0.84, dt * 60);
+      seg.vy = (seg.vy + perpY * whipForce * dt) * Math.pow(0.84, dt * 60);
+
+      seg.x += seg.vx * dt;
+      seg.y += seg.vy * dt;
+
+      const dx = seg.x - leadX;
+      const dy = seg.y - leadY;
+      const dist = Math.hypot(dx, dy) || 0.001;
+      const nx = dx / dist;
+      const ny = dy / dist;
+
+      // Constrain segment to spacing distance behind lead point
+      const targetX = leadX + nx * spacing;
+      const targetY = leadY + ny * spacing;
+      seg.vx += (targetX - seg.x) * 16 * dt;
+      seg.vy += (targetY - seg.y) * 16 * dt;
+      seg.x = targetX;
+      seg.y = targetY;
+
+      leadX = seg.x;
+      leadY = seg.y;
+    }
   }
 
   say(text, duration = 2.2) {
@@ -56,31 +145,36 @@ class PlayerCart {
     if (this.speechTimer > 0) this.speechTimer -= dt;
     if (this.airhornCooldown > 0) this.airhornCooldown -= dt;
     if (this.cannonCooldown > 0) this.cannonCooldown -= dt;
+    if (this.fireBreathTimer > 0) this.fireBreathTimer -= dt;
     if (this.concussionSpin > 0) this.concussionSpin = Math.max(0, this.concussionSpin - dt * 0.45);
 
     const tc = game.touchControls || {};
 
     // Ducking under steering wheel (C / Control or mobile DUCK button) reduces headshot hitbox!
-    this.ducking = Boolean(keys['KeyC'] || keys['ControlLeft'] || keys['ControlRight'] || tc.duck);
+    this.ducking = Boolean(!this.isLizard && (keys['KeyC'] || keys['ControlLeft'] || keys['ControlRight'] || tc.duck));
 
     // Check terrain before computing physics
     const inPond = world.isInPond(this.x, this.y);
     const inBunker = world.isInBunker(this.x, this.y);
     const onGreen = world.isOnGreen(this.x, this.y);
 
-    // Handle Splash Entry & Shore Exit for Water Hazards
-    const currentlyInWater = Boolean(inPond && this.z <= 2);
+    // Driving into the Glowing Green Radioactive Pond mutates Snotty into the Giant Lizard!
+    if (inPond && inPond.toxic && this.z <= 4 && !this.isLizard) {
+      this.mutateIntoLizard(game, inPond);
+    }
+
+    // Handle Splash Entry & Shore Exit for Blue Water Hazards (Cart floats in Swan Pond; Lizard wades freely!)
+    const currentlyInWater = Boolean(inPond && !inPond.toxic && !this.isLizard && this.z <= 2);
     if (currentlyInWater && !this.inWater) {
       // Just splashed into the pond!
       this.inWater = true;
-      this.waterToxic = Boolean(inPond.toxic);
-      // Heavy splash slowdown on entry
+      this.waterToxic = false;
       this.vx *= 0.35;
       this.vy *= 0.35;
       if (window.sound.playWaterSplash) window.sound.playWaterSplash();
-      game.spawnParticles(this.x, this.y, inPond.toxic ? '#a4ff3b' : '#a6d9eb', 16);
-      game.addFloatingText(this.x, this.y - 30, 'SPLASH! FLOATING TO SHORE...', inPond.toxic ? '#a4ff3b' : '#73b3c9');
-      this.say(inPond.toxic ? 'UH-HUH-HUH, GLOWING SLUDGE!' : 'WE\'RE A BOAT, DUDE!');
+      game.spawnParticles(this.x, this.y, '#a6d9eb', 16);
+      game.addFloatingText(this.x, this.y - 30, 'SPLASH! FLOATING TO SHORE...', '#73b3c9');
+      this.say('WE\'RE A BOAT, DUDE!');
     } else if (!currentlyInWater && this.inWater) {
       // Just hit the shore! Regain dry-land tire grip!
       this.inWater = false;
@@ -93,14 +187,18 @@ class PlayerCart {
       this.waterBobPhase += dt * 5.5;
     }
 
-    // When floating in water, speed & acceleration drop way down and cart drifts with current toward shore!
+    // When floating in water, speed & acceleration drop way down; when Lizard, fast stomping & high turn rate!
     const topSpeed = this.inWater
       ? 78
+      : this.isLizard
+      ? 355 + this.upgrades.governor * 40
       : (335 + this.upgrades.governor * 55) * (this.ducking ? 0.78 : 1.0);
     const accel = this.inWater
       ? 145
+      : this.isLizard
+      ? 680
       : 540 + this.upgrades.governor * 90;
-    const turnRate = (this.inWater ? 1.85 : this.ducking ? 2.4 : 3.35) + this.upgrades.governor * 0.25;
+    const turnRate = (this.inWater ? 1.85 : this.isLizard ? 3.85 : this.ducking ? 2.4 : 3.35) + this.upgrades.governor * 0.25;
 
     let throttle = 0;
     if (keys['KeyW'] || keys['ArrowUp']) throttle += 1;
@@ -139,10 +237,16 @@ class PlayerCart {
 
     const effectiveMax = turboActive ? topSpeed * 1.42 : topSpeed;
 
-    // Steer cart
+    // Steer cart or Lizard
     const speedMag = Math.hypot(this.vx, this.vy);
-    const steerFactor = this.inWater ? 0.85 : Math.min(1, speedMag / 90 + 0.35);
-    this.angle += steer * turnRate * steerFactor * dt * (throttle < 0 ? -1 : 1);
+    const steerFactor = this.inWater ? 0.85 : this.isLizard ? 1.0 : Math.min(1, speedMag / 90 + 0.35);
+    const angularVel = steer * turnRate * steerFactor * (throttle < 0 ? -1 : 1);
+    this.angle += angularVel * dt;
+
+    if (this.isLizard) {
+      this.walkPhase += (speedMag * 0.035 + Math.abs(angularVel) * 0.8) * dt;
+      this.updateTail(dt, angularVel);
+    }
 
     // Apply forward acceleration (or tire-paddle propulsion in water)
     const fx = Math.cos(this.angle);
@@ -189,7 +293,7 @@ class PlayerCart {
       this.z = 2;
       game.addFloatingText(this.x, this.y - 30, 'AIR! +50', '#f7d53b');
       game.score += 50;
-      if (Math.random() < 0.6) window.sound.playChuckle('beavis');
+      if (Math.random() < 0.6) window.sound.playChuckle('high');
     }
 
     // Update airborne Z height
@@ -269,7 +373,7 @@ class PlayerCart {
           game.disruption = Math.min(100, game.disruption + 14);
           game.addFloatingText(onGreen.x, onGreen.y - 30, 'FLAG! +200', '#ff4d3b');
           window.sound.playCrash('thud');
-          window.sound.playChuckle('butthead');
+          window.sound.playChuckle('low');
           this.say('SCREW YOUR PAR!');
         }
       }
@@ -333,7 +437,7 @@ class GolfBall {
           game.score += 350;
           game.disruption = Math.min(100, game.disruption + 18);
           game.addFloatingText(this.x, this.y, 'CLUBHOUSE WINDOW SHATTERED! +350', '#73b3c9');
-          game.player.say('HEH-HEH! BREAKING THE LAW!');
+          game.player.say('SMASHED THE VIP LOUNGE!');
         }
         this.vx *= -0.4;
         this.vy = Math.abs(this.vy) * 0.5;
@@ -436,7 +540,7 @@ class GolfBall {
       ctx.restore();
     }
 
-    // Ground shadow (separates from ball as z increases so player can judge 3D height!)
+    // Ground shadow (separates from ball as z increases so player can see 3D height!)
     ctx.fillStyle = 'rgba(0, 0, 0, 0.36)';
     ctx.beginPath();
     const shadowR = Math.max(2.5, 5.5 - this.z * 0.025);
@@ -488,7 +592,7 @@ class SnobGolfer {
     this.vx = 0;
     this.vy = 0;
     this.targetGreen = targetGreen;
-    this.role = role; // 'snob', 'ceo', 'judge'
+    this.role = role; // 'snob', 'ceo'
 
     const shirts = ['#eb5e7b', '#56b4e9', '#f5c236', '#8c6bb1', '#66c2a5'];
     const pants = ['#d9c398', '#c75246', '#5b8c5a', '#d48c46'];
@@ -683,7 +787,7 @@ class SnobGolfer {
         this.timer = 1.1;
         this.furious = true;
         this.droppedClub = null;
-        this.say('EAT 3-WOOD, YOU LITTLE CRAPWEASEL!');
+        this.say('EAT 3-WOOD, YOU LUNATIC CADDIE!');
       }
       return;
     }
@@ -793,6 +897,218 @@ class SnobGolfer {
   }
 }
 
+/**
+ * COUNTRY CLUB KONG: Giant Gorilla called in by the Golf Club Board to fight Snotzilla!
+ * Wears a torn pink argyle sweater-vest & tiny golf visor, beats his chest, hurls golf carts, and drops a Golden Trophy shower!
+ */
+class CountryClubKong {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.z = 160; // Drops in from the sky with an earth-shaking SLAM!
+    this.vx = 0;
+    this.vy = 0;
+    this.vz = -180;
+    this.angle = Math.PI / 2;
+    this.walkPhase = 0;
+
+    this.maxHp = 100;
+    this.hp = 100;
+    this.state = 'roar'; // 'roar', 'chase', 'throw', 'defeated'
+    this.timer = 1.6;
+    this.burnTimer = 0;
+    this.hitCooldown = 0;
+    this.ragdollAngle = 0;
+    this.projectiles = [];
+
+    this.speechText = 'KONG SMASH LIZARD CADDIE!!';
+    this.speechTimer = 3.0;
+  }
+
+  say(text, dur = 2.4) {
+    this.speechText = text;
+    this.speechTimer = dur;
+  }
+
+  takeDamage(amount, sourceX, sourceY, game, label = 'KONG SCORCHED!') {
+    if (this.state === 'defeated' || this.hitCooldown > 0) return;
+    this.hp = Math.max(0, this.hp - amount);
+    this.burnTimer = 0.45;
+    this.hitCooldown = 0.22;
+
+    const pushAngle = Math.atan2(this.y - sourceY, this.x - sourceX);
+    this.vx += Math.cos(pushAngle) * 140;
+    this.vy += Math.sin(pushAngle) * 140;
+
+    game.score += 100;
+    game.spawnParticles(this.x, this.y, '#ff5722', 8);
+    game.addFloatingText(this.x, this.y - 45, `${label} +100`, '#ffea00');
+
+    if (this.hp <= 0) {
+      this.defeat(game);
+    } else if (Math.random() < 0.35) {
+      const roars = [
+        'OW! MY ARGYLE SWEATER VEST!',
+        'KONG HATE FIRE BREATH!!',
+        'MY COUNTRY CLUB FUR!!',
+        'STOP WHIPPING ME WITH THAT TAIL!'
+      ];
+      this.say(roars[Math.floor(Math.random() * roars.length)], 2.0);
+    }
+  }
+
+  defeat(game) {
+    this.state = 'defeated';
+    this.timer = 6.0;
+    this.vz = 180;
+    this.z = 5;
+    this.ragdollAngle = 0.8;
+
+    if (window.sound.playKongRoar) window.sound.playKongRoar();
+    window.sound.playCrash('thud');
+    setTimeout(() => window.sound.playChuckle('low'), 400);
+
+    game.camera.shake = 24;
+    game.score += 1500;
+    this.say('MY COUNTRY CLUB MEMBERSHIP!! AAARGH!', 4.0);
+    game.addFloatingText(this.x, this.y - 60, 'COUNTRY CLUB KONG DEFEATED! +1500 & GOLDEN BALL SHOWER!', '#a4ff3b');
+    game.player.say('TIMBERRR! DOWN GOES THE BIG APE!', 3.5);
+
+    // Shower the fairway with 10 Golden 24K Trophy Balls!
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2;
+      const sp = 140 + Math.random() * 140;
+      game.balls.push(
+        new GolfBall({
+          x: this.x,
+          y: this.y,
+          z: 18,
+          vx: Math.cos(a) * sp,
+          vy: Math.sin(a) * sp,
+          vz: 120 + Math.random() * 80,
+          kind: 'gold'
+        })
+      );
+    }
+  }
+
+  update(dt, world, game) {
+    if (this.speechTimer > 0) this.speechTimer -= dt;
+    if (this.burnTimer > 0) this.burnTimer -= dt;
+    if (this.hitCooldown > 0) this.hitCooldown -= dt;
+
+    // Update airborne Z height (drop-in slam or leap!)
+    if (this.z > 0 || this.vz !== 0) {
+      this.z += this.vz * dt;
+      this.vz -= 520 * dt;
+      if (this.z <= 0) {
+        this.z = 0;
+        this.vz = 0;
+        game.camera.shake = 16;
+        window.sound.playCrash('thud');
+        game.shockwaves.push({ x: this.x, y: this.y, r: 20, maxR: 220, color: '#ff5722' });
+      }
+    }
+
+    // Update hurled golf cart projectiles
+    for (let i = this.projectiles.length - 1; i >= 0; i--) {
+      const pr = this.projectiles[i];
+      pr.x += pr.vx * dt;
+      pr.y += pr.vy * dt;
+      pr.z += pr.vz * dt;
+      pr.vz -= 420 * dt;
+      pr.angle += 7 * dt;
+
+      // Check hit against player
+      const p = game.player;
+      if (Math.hypot(pr.x - p.x, pr.y - p.y) < 38 && pr.z < 36) {
+        game.camera.shake = 14;
+        window.sound.playCrash('thud');
+        const pushA = Math.atan2(p.y - pr.y, p.x - pr.x);
+        p.vx += Math.cos(pushA) * 320;
+        p.vy += Math.sin(pushA) * 320;
+        game.addFloatingText(p.x, p.y - 35, 'HIT BY THROWN GOLF CART!', '#ff4d3b');
+        this.projectiles.splice(i, 1);
+        continue;
+      }
+
+      if (pr.z <= 0) {
+        window.sound.playCrash('thud');
+        game.spawnParticles(pr.x, pr.y, '#efe3c8', 10);
+        this.projectiles.splice(i, 1);
+      }
+    }
+
+    if (this.state === 'defeated') {
+      this.x += this.vx * dt;
+      this.y += this.vy * dt;
+      this.vx *= Math.pow(0.88, dt * 60);
+      this.vy *= Math.pow(0.88, dt * 60);
+      this.timer -= dt;
+      return;
+    }
+
+    const p = game.player;
+    const dx = p.x - this.x;
+    const dy = p.y - this.y;
+    const dist = Math.hypot(dx, dy);
+    this.angle = Math.atan2(dy, dx);
+
+    this.timer -= dt;
+
+    if (this.state === 'roar') {
+      if (this.timer <= 0) {
+        this.state = 'chase';
+        this.timer = 3.2;
+      }
+    } else if (this.state === 'chase') {
+      const speed = 195;
+      this.vx += (Math.cos(this.angle) * speed - this.vx) * Math.min(1, dt * 6);
+      this.vy += (Math.sin(this.angle) * speed - this.vy) * Math.min(1, dt * 6);
+      this.x += this.vx * dt;
+      this.y += this.vy * dt;
+      this.walkPhase += dt * 7;
+
+      // Ground-pound knockback if Kong reaches the Lizard!
+      if (dist < 56 && this.z <= 5) {
+        this.vz = 150;
+        this.z = 4;
+        p.vx = Math.cos(this.angle) * 380;
+        p.vy = Math.sin(this.angle) * 380;
+        game.camera.shake = 15;
+        window.sound.playCrash('thud');
+        game.addFloatingText(p.x, p.y - 38, 'KONG BELLY SLAM!', '#ff4d3b');
+        this.say('GET OFF MY COUNTRY CLUB!!', 2.0);
+      }
+
+      if (this.timer <= 0) {
+        this.state = 'throw';
+        this.timer = 1.1;
+        if (window.sound.playKongRoar) window.sound.playKongRoar();
+        this.say('EAT GOLF CART, SCALY FREAK!!', 1.8);
+
+        // Hurl a whole golf cart at Snotzilla!
+        const flightT = Math.max(0.65, Math.min(1.25, dist / 420));
+        this.projectiles.push({
+          x: this.x + Math.cos(this.angle) * 28,
+          y: this.y + Math.sin(this.angle) * 28,
+          z: 22,
+          vx: (dx + p.vx * 0.35) / flightT,
+          vy: (dy + p.vy * 0.35) / flightT,
+          vz: 0.5 * 420 * flightT,
+          angle: this.angle
+        });
+      }
+    } else if (this.state === 'throw') {
+      if (this.timer <= 0) {
+        this.state = 'chase';
+        this.timer = 3.0;
+      }
+    }
+  }
+}
+
 window.PlayerCart = PlayerCart;
 window.GolfBall = GolfBall;
 window.SnobGolfer = SnobGolfer;
+window.CountryClubKong = CountryClubKong;

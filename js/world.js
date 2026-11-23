@@ -43,7 +43,7 @@ class GolfCourseWorld {
 
     // Putting Greens (Drifting on these ruins the turf for huge bonus disruption points!)
     this.greens = [
-      { id: 1, name: '1st Green (Judge Smails Memorial)', x: 590, y: 470, r: 145, flagBroken: false, turfRuined: 0 },
+      { id: 1, name: '1st Green (Founder\'s Memorial)', x: 590, y: 470, r: 145, flagBroken: false, turfRuined: 0 },
       { id: 2, name: '9th Green (Swan Terrace)', x: 2050, y: 690, r: 150, flagBroken: false, turfRuined: 0 },
       { id: 3, name: '18th Green (Clubhouse Championship)', x: 1280, y: 1290, r: 165, flagBroken: false, turfRuined: 0 }
     ];
@@ -58,10 +58,10 @@ class GolfCourseWorld {
       { x: 1080, y: 1180, rx: 78, ry: 50 }
     ];
 
-    // Water Hazards & Toxic Chemical Runoff Pond
+    // Water Hazards & Secret Easter-Egg Green Radioactive Pond tucked in the far corner!
     this.ponds = [
       { x: 1140, y: 860, rx: 195, ry: 125, toxic: false, label: 'SWAN POND' },
-      { x: 2150, y: 1580, rx: 175, ry: 115, toxic: true, label: 'EPA SUPERFUND HAZARD' }
+      { x: 2310, y: 1730, rx: 115, ry: 78, toxic: true, label: '' }
     ];
 
     // Angry Prized Country Club Swans swimming around Swan Pond
@@ -136,13 +136,15 @@ class GolfCourseWorld {
       });
     });
 
-    // 18 Ornamental Country Club Bushes & Azalea Hedges
+    // 18 Ornamental Country Club Bushes & Azalea Hedges (plus secret hedge ring hiding the Easter-egg pond!)
     const bushSpots = [
       [1120, 315], [1170, 315], [1430, 315], [1480, 315],
       [580, 1590], [770, 1580], [610, 1160], [490, 810],
       [710, 430], [1100, 650], [1360, 490], [1820, 750],
       [2040, 560], [2020, 1340], [1740, 1420], [1410, 1240],
-      [1190, 1390], [990, 1310]
+      [1190, 1390], [990, 1310],
+      // Secret thicket screening the hidden Radioactive Pond in the bottom-right corner
+      [2165, 1685], [2185, 1745], [2235, 1635], [2295, 1625]
     ];
     bushSpots.forEach(([bx, by], i) => {
       this.props.push({
@@ -371,22 +373,45 @@ class GolfCourseWorld {
       ctx.stroke();
     }
 
-    // 6. Water & Toxic Ponds
+    // 6. Water & Glowing Green Radioactive Ponds
     this.ponds.forEach((p, idx) => {
-      const fill = p.toxic ? '#5cb82e' : renderer.palette.water;
-      renderer.drawBoilEllipse(p.x, p.y, p.rx, p.ry, fill, '#161311', 3.5, 2.2, 16, 1300 + idx);
       if (p.toxic) {
-        // Bubbling radioactive sludge rings
-        const bPulse = (Date.now() * 0.04) % 25;
-        renderer.drawBoilEllipse(p.x - 45, p.y + 10, 10 + bPulse * 0.5, 7 + bPulse * 0.3, '#a4ff3b', '#161311', 1.8, 1.0, 8, 1310);
-        renderer.drawBoilEllipse(p.x + 55, p.y - 20, 8 + bPulse * 0.4, 6 + bPulse * 0.3, '#a4ff3b', '#161311', 1.8, 1.0, 8, 1311);
+        // Outer neon green radioactive glow ring
+        ctx.save();
+        ctx.fillStyle = 'rgba(118, 255, 3, 0.25)';
+        ctx.beginPath();
+        ctx.ellipse(p.x, p.y, p.rx + 16, p.ry + 14, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
       }
-      ctx.save();
-      ctx.font = '900 14px "Trebuchet MS", "Arial Black", system-ui, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.8)';
-      ctx.textAlign = 'center';
-      ctx.fillText(p.label, p.x, p.y + 5);
-      ctx.restore();
+
+      const fill = p.toxic ? '#52e016' : renderer.palette.water;
+      const border = p.toxic ? '#a4ff3b' : '#161311';
+      renderer.drawBoilEllipse(p.x, p.y, p.rx, p.ry, fill, border, 3.8, 2.2, 16, 1300 + idx);
+
+      if (p.toxic) {
+        // Inner dark green outline & bubbling neon-green sludge rings
+        renderer.drawBoilEllipse(p.x, p.y, p.rx - 5, p.ry - 4, null, '#161311', 2.4, 1.8, 16, 1305 + idx);
+        const bPulse = (Date.now() * 0.04) % 25;
+        renderer.drawBoilEllipse(p.x - 45, p.y + 10, 11 + bPulse * 0.5, 8 + bPulse * 0.3, '#b9ff4f', '#161311', 1.8, 1.0, 8, 1310 + idx);
+        renderer.drawBoilEllipse(p.x + 50, p.y - 22, 9 + bPulse * 0.4, 7 + bPulse * 0.3, '#b9ff4f', '#161311', 1.8, 1.0, 8, 1311 + idx);
+
+        // Leaking Yellow Radioactive Barrel on shore
+        renderer.drawBoilBox(p.x - p.rx + 10, p.y - 14, 22, 28, '#ffea00', '#161311', 2.4, 0.8, 1320 + idx);
+        renderer.drawBoilLine(p.x - p.rx + 10, p.y, p.x - p.rx + 32, p.y, '#161311', 3, 0.4, 1321 + idx);
+      }
+
+      if (p.label) {
+        ctx.save();
+        ctx.font = '900 14px "Trebuchet MS", "Arial Black", system-ui, sans-serif';
+        ctx.strokeStyle = '#161311';
+        ctx.lineWidth = 3.5;
+        ctx.textAlign = 'center';
+        ctx.strokeText(p.label, p.x, p.y + 5);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(p.label, p.x, p.y + 5);
+        ctx.restore();
+      }
     });
 
     // 7. Swimming Country Club Swans
