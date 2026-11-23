@@ -637,11 +637,11 @@ class CartoonRenderer {
     // Compact exclamation badge above golfer during backswing
     if (g.state === 'backswing') {
       ctx.save();
-      ctx.font = 'bold 13px Impact, Arial Black, sans-serif';
+      ctx.font = '900 14px "Trebuchet MS", "Arial Black", system-ui, sans-serif';
       ctx.textAlign = 'center';
-      const label = g.aimAtPlayer ? 'FORE!' : '[SPACE]';
-      const tw = ctx.measureText(label).width + 12;
-      this.drawBoilBox(g.x - tw / 2, g.y - 36, tw, 19, g.aimAtPlayer ? '#d92b2b' : '#f7d53b', '#161311', 2, 0.9, g.id + 99);
+      const label = g.aimAtPlayer ? 'FORE!' : 'HORN!';
+      const tw = ctx.measureText(label).width + 14;
+      this.drawBoilBox(g.x - tw / 2, g.y - 38, tw, 22, g.aimAtPlayer ? '#d92b2b' : '#f7d53b', '#161311', 2.2, 0.9, g.id + 99);
       ctx.fillStyle = g.aimAtPlayer ? '#ffffff' : '#161311';
       ctx.fillText(label, g.x, g.y - 22);
       ctx.restore();
@@ -691,22 +691,22 @@ class CartoonRenderer {
   }
 
   /**
-   * Draw Comic Speech Bubble with boiling border
+   * Draw Comic Speech Bubble with boiling border (High-contrast legible cartoon font)
    */
-  drawSpeechBubble(x, y, text, bg = '#f3e5c8', fg = '#161311') {
+  drawSpeechBubble(x, y, text, bg = '#fff7e0', fg = '#161311') {
     const ctx = this.ctx;
     ctx.save();
-    ctx.font = 'bold 14px Impact, Arial Black, sans-serif';
-    const pad = 10;
+    ctx.font = '900 15px "Trebuchet MS", "Arial Black", system-ui, sans-serif';
+    const pad = 12;
     const tw = ctx.measureText(text).width + pad * 2;
-    const th = 24;
+    const th = 28;
     const bx = x - tw / 2;
     const by = y - th - 12;
 
-    this.drawBoilBox(bx, by, tw, th, bg, '#161311', 2.4, 1.2, Math.floor(x));
+    this.drawBoilBox(bx, by, tw, th, bg, '#161311', 2.5, 1.0, Math.floor(x));
     ctx.fillStyle = fg;
     ctx.textAlign = 'center';
-    ctx.fillText(text, x, by + 17);
+    ctx.fillText(text, x, by + 19);
     ctx.restore();
   }
 }

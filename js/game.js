@@ -109,28 +109,33 @@ class CrazyCaddieGame {
   }
 
   resize() {
-    this.canvas.width = window.innerWidth;
-    this.canvas.height = window.innerHeight;
+    this.width = window.innerWidth;
+    this.height = window.innerHeight;
+    this.dpr = Math.min(2, window.devicePixelRatio || 1);
+    this.canvas.width = Math.floor(this.width * this.dpr);
+    this.canvas.height = Math.floor(this.height * this.dpr);
+    this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+
     this.isMobile = Boolean(
       this.isTouchDevice ||
-      window.innerWidth <= 820 ||
-      window.innerHeight <= 520
+      this.width <= 820 ||
+      this.height <= 520
     );
     // Zoom camera out slightly on small phone screens so you can see incoming golf balls clearly!
-    const minDim = Math.min(this.canvas.width, this.canvas.height);
+    const minDim = Math.min(this.width, this.height);
     this.worldScale = minDim < 620 ? Math.max(0.68, minDim / 640) : 1.0;
 
     if (this.touchControls && !this.touchControls.stickActive) {
       this.touchControls.stickBaseX = 88;
-      this.touchControls.stickBaseY = this.canvas.height - 96;
+      this.touchControls.stickBaseY = this.height - 96;
       this.touchControls.stickKnobX = 88;
-      this.touchControls.stickKnobY = this.canvas.height - 96;
+      this.touchControls.stickKnobY = this.height - 96;
     }
   }
 
   getMobileButtons() {
-    const w = this.canvas.width;
-    const h = this.canvas.height;
+    const w = this.width;
+    const h = this.height;
     const compact = w < 440;
     const rMain = compact ? 34 : 38;
     const rSub = compact ? 27 : 31;
@@ -138,9 +143,9 @@ class CrazyCaddieGame {
     // Top-right SHOP button rect
     const shopBtn = {
       id: 'shop',
-      x: w - (compact ? 88 : 104),
-      y: 12,
-      w: compact ? 76 : 90,
+      x: w - (compact ? 96 : 108),
+      y: 10,
+      w: compact ? 86 : 96,
       h: compact ? 38 : 42
     };
 
@@ -354,14 +359,14 @@ class CrazyCaddieGame {
     }
 
     // 3. Left half of screen engages the Virtual Thumbstick!
-    if (tx < this.canvas.width * 0.52 && ty > 100 && this.touchControls.stickTouchId === null) {
+    if (tx < this.width * 0.52 && ty > 100 && this.touchControls.stickTouchId === null) {
       this.touchControls.stickTouchId = touchId;
       this.touchControls.stickActive = true;
       // Anchor joystick where thumb lands (or near default base)
-      const distToDefault = Math.hypot(tx - 88, ty - (this.canvas.height - 96));
+      const distToDefault = Math.hypot(tx - 88, ty - (this.height - 96));
       if (distToDefault < 85) {
         this.touchControls.stickBaseX = 88;
-        this.touchControls.stickBaseY = this.canvas.height - 96;
+        this.touchControls.stickBaseY = this.height - 96;
       } else {
         this.touchControls.stickBaseX = tx;
         this.touchControls.stickBaseY = ty;
@@ -397,9 +402,9 @@ class CrazyCaddieGame {
     tc.stickX = 0;
     tc.stickY = 0;
     tc.stickBaseX = 88;
-    tc.stickBaseY = this.canvas.height - 96;
+    tc.stickBaseY = this.height - 96;
     tc.stickKnobX = 88;
-    tc.stickKnobY = this.canvas.height - 96;
+    tc.stickKnobY = this.height - 96;
   }
 
   startNewGame() {
@@ -426,8 +431,10 @@ class CrazyCaddieGame {
     this.player.vx = 0;
     this.player.vy = 0;
     this.player.ballsCarried = 0;
-    this.camera.x = Math.max(0, Math.min(this.world.width - this.canvas.width, this.player.x - this.canvas.width / 2));
-    this.camera.y = Math.max(0, Math.min(this.world.height - this.canvas.height, this.player.y - this.canvas.height / 2));
+    const viewW = this.width / this.worldScale;
+    const viewH = this.height / this.worldScale;
+    this.camera.x = Math.max(0, Math.min(this.world.width - viewW, this.player.x - viewW / 2));
+    this.camera.y = Math.max(0, Math.min(this.world.height - viewH, this.player.y - viewH / 2));
     this.disruption = Math.min(35, (ep - 1) * 12);
     this.ranger = null;
 
@@ -615,10 +622,10 @@ class CrazyCaddieGame {
       }
     } else {
       // Desktop: Aim toward mouse cursor in world space
-      const viewW = this.canvas.width / this.worldScale;
-      const viewH = this.canvas.height / this.worldScale;
-      this.mouse.worldX = this.camera.x + (this.mouse.x / this.canvas.width) * viewW;
-      this.mouse.worldY = this.camera.y + (this.mouse.y / this.canvas.height) * viewH;
+      const viewW = this.width / this.worldScale;
+      const viewH = this.height / this.worldScale;
+      this.mouse.worldX = this.camera.x + (this.mouse.x / this.width) * viewW;
+      this.mouse.worldY = this.camera.y + (this.mouse.y / this.height) * viewH;
       aimAngle = Math.atan2(this.mouse.worldY - p.y, this.mouse.worldX - p.x);
     }
 
@@ -738,8 +745,8 @@ class CrazyCaddieGame {
   }
 
   handleShopClick(mx, my) {
-    const w = this.canvas.width;
-    const h = this.canvas.height;
+    const w = this.width;
+    const h = this.height;
     const narrow = w < 600;
     const panelW = Math.min(760, w - (narrow ? 16 : 40));
     const panelH = Math.min(560, h - (narrow ? 16 : 40));
@@ -1116,8 +1123,8 @@ class CrazyCaddieGame {
     }
 
     // Smooth camera follow (scaled by worldScale for mobile viewports!)
-    const viewW = this.canvas.width / this.worldScale;
-    const viewH = this.canvas.height / this.worldScale;
+    const viewW = this.width / this.worldScale;
+    const viewH = this.height / this.worldScale;
     const targetCamX = this.player.x - viewW / 2 + this.player.vx * 0.22;
     const targetCamY = this.player.y - viewH / 2 + this.player.vy * 0.22;
     this.camera.x += (targetCamX - this.camera.x) * Math.min(1, dt * 7);
@@ -1128,9 +1135,10 @@ class CrazyCaddieGame {
 
   draw() {
     const ctx = this.ctx;
-    const w = this.canvas.width;
-    const h = this.canvas.height;
+    const w = this.width;
+    const h = this.height;
 
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
 
     if (this.state === 'title') {
@@ -1171,14 +1179,14 @@ class CrazyCaddieGame {
     for (const g of this.golfers) {
       this.renderer.drawGolfer(g);
       if (g.speechTimer > 0) {
-        this.renderer.drawSpeechBubble(g.x, g.y - 32 - (g.z || 0), g.speechText, '#fff4d6', '#161311');
+        this.renderer.drawSpeechBubble(g.x, g.y - 32 - (g.z || 0), g.speechText, '#fff7e0', '#161311');
       }
     }
 
     // 4. Draw Ranger Buzz McVicker's Turf Mower
     if (this.ranger) {
       this.renderer.drawRanger(this.ranger);
-      const rLabel = this.ranger.stunTimer > 0 ? 'STUNNED! ($#%@!)' : 'RANGER McVICKER: "I\'LL MOW YOUR ASS!"';
+      const rLabel = this.ranger.stunTimer > 0 ? 'STUNNED! ($#%@!)' : 'RANGER: "I\'LL MOW YOUR ASS!"';
       this.renderer.drawSpeechBubble(this.ranger.x, this.ranger.y - 28, rLabel, '#d92b2b', '#ffffff');
     }
 
@@ -1199,14 +1207,15 @@ class CrazyCaddieGame {
       ctx.fillRect(pt.x - pt.size / 2, pt.y - pt.size / 2, pt.size, pt.size);
     }
 
-    // 8. Draw Comic Floating Score Texts
-    ctx.font = 'bold 16px Impact, Arial Black, sans-serif';
+    // 8. Draw Comic Floating Score Texts (Crisp high-contrast cartoon font)
+    ctx.font = '900 17px "Trebuchet MS", "Arial Black", system-ui, sans-serif';
     ctx.textAlign = 'center';
     for (const ft of this.floatingTexts) {
       ctx.save();
       ctx.globalAlpha = Math.max(0, ft.life / ft.maxLife);
       ctx.strokeStyle = '#161311';
-      ctx.lineWidth = 3.5;
+      ctx.lineWidth = 4;
+      ctx.lineJoin = 'round';
       ctx.strokeText(ft.text, ft.x, ft.y);
       ctx.fillStyle = ft.color;
       ctx.fillText(ft.text, ft.x, ft.y);
@@ -1214,15 +1223,6 @@ class CrazyCaddieGame {
     }
 
     ctx.restore();
-
-    // VHS Hit Glitch Bars on Head Impact
-    if (this.vhsGlitchTimer > 0) {
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
-      for (let i = 0; i < 5; i++) {
-        const gy = Math.random() * h;
-        ctx.fillRect(0, gy, w, 6 + Math.random() * 14);
-      }
-    }
 
     // Draw 90s MTV Cartoon HUD
     this.drawHUD();
@@ -1236,14 +1236,15 @@ class CrazyCaddieGame {
 
   drawHUD() {
     const ctx = this.ctx;
-    const w = this.canvas.width;
-    const h = this.canvas.height;
+    const w = this.width;
+    const h = this.height;
     const p = this.player;
     const compact = w < 600;
+    const fontStack = '"Trebuchet MS", "Arial Black", system-ui, -apple-system, sans-serif';
 
     // 1. Top-Left Compact Card: Live Portrait + Focused Stats & Visual Head Health
-    const portSize = compact ? 64 : 82;
-    const pad = compact ? 10 : 14;
+    const portSize = compact ? 66 : 82;
+    const pad = compact ? 8 : 14;
     this.renderer.drawCaddiePortrait(pad, pad, portSize, {
       lumps: p.lumps,
       ducking: p.ducking,
@@ -1253,27 +1254,27 @@ class CrazyCaddieGame {
     });
 
     const statsX = pad + portSize + 6;
-    const statsW = compact ? 148 : 190;
-    this.renderer.drawBoilBox(statsX, pad, statsW, portSize, 'rgba(22, 19, 17, 0.88)', '#161311', 3, 1.3, 701);
+    const statsW = compact ? 158 : 200;
+    this.renderer.drawBoilBox(statsX, pad, statsW, portSize, 'rgba(20, 17, 15, 0.92)', '#161311', 3, 1.2, 701);
 
     ctx.textAlign = 'left';
-    ctx.font = compact ? 'bold 16px Impact, Arial Black, sans-serif' : 'bold 20px Impact, Arial Black, sans-serif';
+    ctx.font = `900 ${compact ? 15 : 18}px ${fontStack}`;
     ctx.fillStyle = p.ballsCarried >= this.quota ? '#a4ff3b' : '#f7d53b';
-    ctx.fillText(`BALLS: ${p.ballsCarried}/${this.quota}`, statsX + 10, pad + (compact ? 20 : 24), statsW - 18);
+    ctx.fillText(`BALLS: ${p.ballsCarried}/${this.quota}`, statsX + 10, pad + (compact ? 20 : 25));
 
-    ctx.font = compact ? 'bold 13px Impact, Arial Black, sans-serif' : 'bold 15px Impact, Arial Black, sans-serif';
-    ctx.fillStyle = '#f3e5c8';
-    ctx.fillText(`SCORE: ${this.score}`, statsX + 10, pad + (compact ? 38 : 45), statsW - 18);
+    ctx.font = `900 ${compact ? 13 : 15}px ${fontStack}`;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(`SCORE: ${this.score}`, statsX + 10, pad + (compact ? 38 : 46));
 
     // Visual Head Health Hearts/Pips
-    ctx.font = compact ? 'bold 11px Impact, sans-serif' : 'bold 13px Impact, sans-serif';
-    ctx.fillStyle = '#d8be82';
-    ctx.fillText('SKULL:', statsX + 10, pad + (compact ? 56 : 68));
+    ctx.font = `900 ${compact ? 11 : 13}px ${fontStack}`;
+    ctx.fillStyle = '#e8d09b';
+    ctx.fillText('HEAD:', statsX + 10, pad + (compact ? 56 : 68));
 
     const hitsLeft = Math.max(0, p.maxLumps - p.lumps);
-    const pipStart = statsX + (compact ? 50 : 64);
-    const pipStep = compact ? 16 : 22;
-    const pipR = compact ? 5.8 : 7.5;
+    const pipStart = statsX + (compact ? 54 : 66);
+    const pipStep = compact ? 16 : 21;
+    const pipR = compact ? 5.8 : 7.2;
     for (let i = 0; i < 3; i++) {
       const pipX = pipStart + i * pipStep;
       const pipY = pad + (compact ? 52 : 63);
@@ -1286,16 +1287,16 @@ class CrazyCaddieGame {
         alive ? '#a4ff3b' : '#9e479c',
         '#161311',
         2,
-        0.5,
+        0.4,
         8,
         720 + i
       );
     }
 
     if (p.hasHelmet || p.hasRoof) {
-      ctx.font = compact ? 'bold 10px Impact, sans-serif' : 'bold 12px Impact, sans-serif';
-      ctx.fillStyle = '#73b3c9';
-      ctx.fillText(p.hasHelmet ? '+HELM' : '+ROOF', pipStart + 3 * pipStep, pad + (compact ? 56 : 68));
+      ctx.font = `900 ${compact ? 10 : 12}px ${fontStack}`;
+      ctx.fillStyle = '#7be0ff';
+      ctx.fillText(p.hasHelmet ? '+LID' : '+ROOF', pipStart + 3 * pipStep - 2, pad + (compact ? 56 : 68));
     }
 
     // 2. Top-Right: Tappable SHOP button on Mobile OR Minimap Radar on Desktop
@@ -1311,22 +1312,22 @@ class CrazyCaddieGame {
         quotaMet ? '#5cb82e' : '#4a3d31',
         '#f7d53b',
         2.8,
-        1.2,
+        1.1,
         704
       );
       ctx.textAlign = 'center';
-      ctx.font = compact ? 'bold 14px Impact, Arial Black, sans-serif' : 'bold 15px Impact, Arial Black, sans-serif';
+      ctx.font = `900 ${compact ? 13 : 14}px ${fontStack}`;
       ctx.fillStyle = '#ffffff';
-      ctx.fillText(quotaMet ? 'NEXT EP!' : `SHOP (${p.walletBalls})`, sb.x + sb.w / 2, sb.y + sb.h * 0.65, sb.w - 10);
+      ctx.fillText(quotaMet ? 'NEXT EP!' : `SHOP (${p.walletBalls})`, sb.x + sb.w / 2, sb.y + sb.h * 0.63);
 
       // Compact Rage Bar below top-right shop button on narrow phones, or top-center on wider screens
       const rageW = compact ? sb.w : Math.min(180, Math.max(120, sb.x - (statsX + statsW + 16)));
       const rageX = compact ? sb.x : statsX + statsW + (sb.x - (statsX + statsW) - rageW) / 2;
-      const rageY = compact ? sb.y + sb.h + 6 : pad;
+      const rageY = compact ? sb.y + sb.h + 5 : pad;
       const rageH = compact ? 28 : 42;
-      this.renderer.drawBoilBox(rageX, rageY, rageW, rageH, 'rgba(22, 19, 17, 0.88)', '#161311', 2.4, 1.0, 702);
-      ctx.font = compact ? 'bold 10px Impact, sans-serif' : 'bold 12px Impact, sans-serif';
-      ctx.fillStyle = this.disruption >= 70 ? '#ff3b2f' : '#f7d53b';
+      this.renderer.drawBoilBox(rageX, rageY, rageW, rageH, 'rgba(20, 17, 15, 0.92)', '#161311', 2.4, 1.0, 702);
+      ctx.font = `900 ${compact ? 10 : 12}px ${fontStack}`;
+      ctx.fillStyle = this.disruption >= 70 ? '#ff4d3b' : '#f7d53b';
       ctx.fillText(
         this.disruption >= 70 ? 'RANGER!' : `RAGE ${Math.floor(this.disruption)}%`,
         rageX + rageW / 2,
@@ -1371,14 +1372,14 @@ class CrazyCaddieGame {
       const availRight = mapX - 12;
       const barW = Math.min(200, Math.max(140, availRight - availLeft));
       const barX = availLeft + (availRight - availLeft - barW) / 2;
-      this.renderer.drawBoilBox(barX, 14, barW, 46, 'rgba(22, 19, 17, 0.88)', '#161311', 2.8, 1.2, 702);
-      ctx.font = 'bold 13px Impact, sans-serif';
+      this.renderer.drawBoilBox(barX, 14, barW, 46, 'rgba(20, 17, 15, 0.92)', '#161311', 2.8, 1.2, 702);
+      ctx.font = `900 13px ${fontStack}`;
       ctx.textAlign = 'center';
-      ctx.fillStyle = this.disruption >= 70 ? '#ff3b2f' : '#f7d53b';
+      ctx.fillStyle = this.disruption >= 70 ? '#ff4d3b' : '#f7d53b';
       ctx.fillText(
         this.disruption >= 70 ? 'RANGER CHASE!' : `RAGE: ${Math.floor(this.disruption)}%`,
         barX + barW / 2,
-        31
+        30
       );
       this.renderer.drawBoilBox(barX + 12, 37, barW - 24, 13, '#2b2522', '#161311', 1.8, 0.6, 703);
       const fillW = Math.max(3, ((barW - 28) * this.disruption) / 100);
@@ -1389,10 +1390,10 @@ class CrazyCaddieGame {
     // Punchy Incoming Ball Alert (only flashes when a ball is flying at your head!)
     const incoming = this.balls.some((b) => b.inFlight && b.aimedAtPlayer);
     if (incoming && Math.floor(Date.now() / 110) % 2 === 0) {
-      const alW = compact ? 185 : 210;
-      const alY = compact ? 82 : 68;
-      this.renderer.drawBoilBox(w / 2 - alW / 2, alY, alW, 30, '#d92b2b', '#161311', 3, 1.3, 709);
-      ctx.font = compact ? 'bold 15px Impact, Arial Black, sans-serif' : 'bold 17px Impact, Arial Black, sans-serif';
+      const alW = compact ? 195 : 225;
+      const alY = compact ? 84 : 68;
+      this.renderer.drawBoilBox(w / 2 - alW / 2, alY, alW, 32, '#d92b2b', '#161311', 3, 1.2, 709);
+      ctx.font = `900 ${compact ? 14 : 16}px ${fontStack}`;
       ctx.textAlign = 'center';
       ctx.fillStyle = '#ffffff';
       ctx.fillText(this.isMobile ? 'FORE! TAP DUCK!' : 'FORE! DUCK [C]!', w / 2, alY + 21);
@@ -1402,18 +1403,18 @@ class CrazyCaddieGame {
     if (this.isMobile && this.state === 'playing') {
       this.drawMobileControls();
     } else if (!this.isMobile) {
-      const botW = Math.min(540, w - 28);
+      const botW = Math.min(580, w - 28);
       const botX = (w - botW) / 2;
       const botY = h - 42;
-      this.renderer.drawBoilBox(botX, botY, botW, 30, 'rgba(22, 19, 17, 0.85)', '#161311', 2.2, 0.9, 710);
-      ctx.font = 'bold 13px Impact, Arial Black, sans-serif';
-      ctx.fillStyle = p.ballsCarried >= this.quota ? '#a4ff3b' : '#f3e5c8';
+      this.renderer.drawBoilBox(botX, botY, botW, 32, 'rgba(20, 17, 15, 0.9)', '#161311', 2.2, 0.9, 710);
+      ctx.font = `900 13px ${fontStack}`;
+      ctx.fillStyle = p.ballsCarried >= this.quota ? '#a4ff3b' : '#ffffff';
       ctx.textAlign = 'center';
       const label =
         p.ballsCarried >= this.quota
           ? 'QUOTA MET! PRESS [B] FOR NEXT EPISODE & UPGRADES!'
           : `[WASD] Drive  •  [SPACE] Horn  •  [C] Duck  •  [SHIFT] Turbo  •  [B] Shop (${p.walletBalls})`;
-      ctx.fillText(label, w / 2, botY + 20, botW - 20);
+      ctx.fillText(label, w / 2, botY + 21);
     }
   }
 
@@ -1424,24 +1425,24 @@ class CrazyCaddieGame {
     const ctx = this.ctx;
     const tc = this.touchControls;
     const btns = this.getMobileButtons();
+    const fontStack = '"Trebuchet MS", "Arial Black", system-ui, -apple-system, sans-serif';
 
     ctx.save();
     // 1. Virtual Thumbstick (Bottom-Left)
-    ctx.globalAlpha = tc.stickActive ? 0.85 : 0.55;
+    ctx.globalAlpha = tc.stickActive ? 0.9 : 0.65;
     this.renderer.drawBoilEllipse(
       tc.stickBaseX,
       tc.stickBaseY,
       46,
       46,
-      'rgba(22, 19, 17, 0.65)',
+      'rgba(20, 17, 15, 0.72)',
       '#f3e5c8',
       2.5,
-      1.2,
+      1.1,
       14,
       950
     );
-    // Direction crosshairs inside joystick base
-    ctx.strokeStyle = 'rgba(243, 229, 200, 0.3)';
+    ctx.strokeStyle = 'rgba(243, 229, 200, 0.35)';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(tc.stickBaseX - 28, tc.stickBaseY);
@@ -1459,12 +1460,12 @@ class CrazyCaddieGame {
       '#f7d53b',
       '#161311',
       2.8,
-      1.0,
+      0.9,
       10,
       951
     );
     if (!tc.stickActive) {
-      ctx.font = 'bold 10px Impact, sans-serif';
+      ctx.font = `900 10px ${fontStack}`;
       ctx.fillStyle = '#161311';
       ctx.textAlign = 'center';
       ctx.fillText('STEER', tc.stickKnobX, tc.stickKnobY + 3.5);
@@ -1481,27 +1482,28 @@ class CrazyCaddieGame {
         (b.id === 'duck' && tc.duck) ||
         (b.id === 'turbo' && tc.turbo) ||
         (b.id === 'horn' && this.player.airhornCooldown > 1.2);
-      ctx.globalAlpha = pressed ? 0.95 : 0.72;
+      ctx.globalAlpha = pressed ? 0.98 : 0.82;
       const r = pressed ? b.r * 0.92 : b.r;
-      this.renderer.drawBoilEllipse(b.cx, b.cy, r, r, b.color, '#161311', 2.8, 1.1, 12, 960 + idx);
+      this.renderer.drawBoilEllipse(b.cx, b.cy, r, r, b.color, '#161311', 2.8, 1.0, 12, 960 + idx);
 
-      ctx.font = b.r > 32 ? 'bold 14px Impact, Arial Black, sans-serif' : 'bold 12px Impact, Arial Black, sans-serif';
+      ctx.font = `900 ${b.r > 32 ? 13 : 11}px ${fontStack}`;
       ctx.fillStyle = b.fg;
       ctx.textAlign = 'center';
-      ctx.fillText(b.label, b.cx, b.cy + 5);
+      ctx.fillText(b.label, b.cx, b.cy + 4.5);
     });
 
     ctx.restore();
   }
 
   /**
-   * 1994 MTV Episode Title Card Screen (Mobile & Desktop Responsive)
+   * 1994 MTV Episode Title Card Screen (Crisp Mobile & Desktop Typography)
    */
   drawTitleScreen() {
     const ctx = this.ctx;
-    const w = this.canvas.width;
-    const h = this.canvas.height;
+    const w = this.width;
+    const h = this.height;
     const narrow = w < 580;
+    const fontStack = '"Trebuchet MS", "Arial Black", system-ui, -apple-system, sans-serif';
 
     ctx.fillStyle = '#181412';
     ctx.fillRect(0, 0, w, h);
@@ -1511,80 +1513,82 @@ class CrazyCaddieGame {
     const cx = (w - cardW) / 2;
     const cy = (h - cardH) / 2;
 
-    this.renderer.drawBoilBox(cx, cy, cardW, cardH, '#26201c', '#f7d53b', 5, 2.2, 800);
+    this.renderer.drawBoilBox(cx, cy, cardW, cardH, '#26201c', '#f7d53b', 5, 2.0, 800);
 
     // Snotty & Cletus portraits on either side of the Title Banner
-    const pSize = narrow ? 70 : 112;
-    const pPad = narrow ? 14 : 26;
+    const pSize = narrow ? 62 : 108;
+    const pPad = narrow ? 12 : 24;
     this.renderer.drawCaddiePortrait(cx + pPad, cy + 20, pSize, {
       lumps: 1,
       talking: Math.floor(Date.now() / 450) % 2 === 0
     });
     this.renderer.drawCletusPortrait(cx + cardW - pSize - pPad, cy + 20, pSize, Math.floor(Date.now() / 450) % 2 === 1);
 
-    const titleAvailW = cardW - (pSize + pPad + 12) * 2;
+    const titleAvailW = cardW - (pSize + pPad + 10) * 2;
     ctx.textAlign = 'center';
-    ctx.font = narrow ? 'bold 34px Impact, Arial Black, sans-serif' : 'bold 50px Impact, Arial Black, sans-serif';
+    ctx.font = `900 ${narrow ? 28 : 44}px ${fontStack}`;
     ctx.fillStyle = '#f7d53b';
     ctx.strokeStyle = '#161311';
     ctx.lineWidth = 5;
-    ctx.strokeText('CRAZY CADDIE', w / 2, cy + (narrow ? 56 : 82), titleAvailW);
-    ctx.fillText('CRAZY CADDIE', w / 2, cy + (narrow ? 56 : 82), titleAvailW);
+    ctx.lineJoin = 'round';
+    ctx.strokeText('CRAZY CADDIE', w / 2, cy + (narrow ? 52 : 76), titleAvailW);
+    ctx.fillText('CRAZY CADDIE', w / 2, cy + (narrow ? 52 : 76), titleAvailW);
 
-    ctx.font = narrow ? 'bold 15px Impact, Arial Black, sans-serif' : 'bold 22px Impact, Arial Black, sans-serif';
+    ctx.font = `900 ${narrow ? 13 : 19}px ${fontStack}`;
     ctx.fillStyle = '#a4ff3b';
-    ctx.fillText('EPISODE 1: "FORE-HEAD TRAUMA"', w / 2, cy + (narrow ? 82 : 118), titleAvailW);
+    ctx.fillText('EPISODE 1: "FORE-HEAD TRAUMA"', w / 2, cy + (narrow ? 76 : 110), titleAvailW);
 
-    // Clean 4-Point How to Play Box
-    const boxX = cx + (narrow ? 14 : 36);
-    const boxW = cardW - (narrow ? 28 : 72);
-    const boxY = cy + (narrow ? 104 : 156);
-    const boxH = cardH - (narrow ? 182 : 244);
-    this.renderer.drawBoilBox(boxX, boxY, boxW, boxH, '#f3e5c8', '#161311', 3.5, 1.5, 805);
+    // Clean 4-Point How to Play Box (short, punchy lines that never squish horizontally!)
+    const boxX = cx + (narrow ? 14 : 32);
+    const boxW = cardW - (narrow ? 28 : 64);
+    const boxY = cy + (narrow ? 98 : 148);
+    const boxH = cardH - (narrow ? 174 : 234);
+    this.renderer.drawBoilBox(boxX, boxY, boxW, boxH, '#fff7e0', '#161311', 3.5, 1.4, 805);
 
     ctx.textAlign = 'left';
-    ctx.font = narrow ? 'bold 14px Impact, Arial Black, sans-serif' : 'bold 18px Impact, Arial Black, sans-serif';
+    ctx.font = `900 ${narrow ? 13 : 16}px ${fontStack}`;
     ctx.fillStyle = '#161311';
     const lines = this.isMobile
       ? [
-          '• STEAL BALLS: Drag thumbstick to scoop balls & snatch putts!',
-          '• PROTECT YOUR SKULL: Tap DUCK or drift from red target reticles!',
-          '• AIRHORN HECKLE: Tap HORN mid-swing so golfers shank!',
-          '• DUMPSTER SHOP: Tap SHOP to trade balls for helmets & cannons!'
+          '• STEAL BALLS: Scoop up balls & rolling putts!',
+          '• DODGE HEADSHOTS: Tap DUCK on red targets!',
+          '• AIRHORN HECKLE: Tap HORN as golfers swing!',
+          '• MOD SHOP: Tap SHOP for helmets & cannons!'
         ]
       : [
           '• STEAL GOLF BALLS: Scoop up balls & snatch rolling putts!',
-          '• PROTECT YOUR SKULL [C]: Duck or drift away from red target reticles!',
+          '• DODGE HEADSHOTS [C]: Duck or drift from red target reticles!',
           '• AIRHORN HECKLE [SPACE]: Blast golfers mid-swing so they shank!',
-          '• DUMPSTER SHOP [B]: Trade balls with Cletus for helmets & ball cannons!'
+          '• DUMPSTER SHOP [B]: Trade balls for helmets & ball cannons!'
         ];
-    const lineStep = Math.min(40, Math.floor((boxH - 24) / 4));
+    const lineStep = Math.min(42, Math.floor((boxH - 20) / 4));
     lines.forEach((line, i) => {
-      ctx.fillText(line, boxX + (narrow ? 12 : 22), boxY + 30 + i * lineStep, boxW - (narrow ? 24 : 44));
+      ctx.fillText(line, boxX + (narrow ? 12 : 20), boxY + 30 + i * lineStep, boxW - (narrow ? 22 : 36));
     });
 
     // Flashing Start Button
-    const pulse = Math.sin(Date.now() * 0.008) * 6;
-    const btnW = Math.min(360, cardW - 36);
-    const btnH = narrow ? 46 : 54;
-    this.renderer.drawBoilBox(w / 2 - btnW / 2 - pulse / 2, cy + cardH - btnH - 18, btnW + pulse, btnH, '#d92b2b', '#161311', 4, 1.6, 810);
+    const pulse = Math.sin(Date.now() * 0.008) * 5;
+    const btnW = Math.min(340, cardW - 32);
+    const btnH = narrow ? 46 : 52;
+    this.renderer.drawBoilBox(w / 2 - btnW / 2 - pulse / 2, cy + cardH - btnH - 16, btnW + pulse, btnH, '#d92b2b', '#161311', 4, 1.4, 810);
     ctx.textAlign = 'center';
-    ctx.font = narrow ? 'bold 20px Impact, Arial Black, sans-serif' : 'bold 24px Impact, Arial Black, sans-serif';
+    ctx.font = `900 ${narrow ? 18 : 21}px ${fontStack}`;
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(this.isMobile ? 'TAP TO START' : '[SPACE] OR CLICK TO START', w / 2, cy + cardH - 18 - btnH * 0.35, btnW - 20);
+    ctx.fillText(this.isMobile ? 'TAP TO START' : '[SPACE] OR CLICK TO START', w / 2, cy + cardH - 16 - btnH * 0.34);
   }
 
   /**
-   * Focused "Dumpster Couch" Upgrade Shop (Mobile & Desktop Responsive)
+   * Focused "Dumpster Couch" Upgrade Shop (Crisp Legible Mobile & Desktop Typography)
    */
   drawShopOverlay() {
     const ctx = this.ctx;
-    const w = this.canvas.width;
-    const h = this.canvas.height;
+    const w = this.width;
+    const h = this.height;
     const p = this.player;
     const narrow = w < 600;
+    const fontStack = '"Trebuchet MS", "Arial Black", system-ui, -apple-system, sans-serif';
 
-    ctx.fillStyle = 'rgba(10, 8, 7, 0.85)';
+    ctx.fillStyle = 'rgba(10, 8, 7, 0.88)';
     ctx.fillRect(0, 0, w, h);
 
     const panelW = Math.min(760, w - (narrow ? 16 : 40));
@@ -1592,36 +1596,36 @@ class CrazyCaddieGame {
     const px = (w - panelW) / 2;
     const py = (h - panelH) / 2;
 
-    this.renderer.drawBoilBox(px, py, panelW, panelH, '#2e2722', '#f7d53b', 4.5, 2.0, 850);
+    this.renderer.drawBoilBox(px, py, panelW, panelH, '#2e2722', '#f7d53b', 4.5, 1.8, 850);
 
     // Header
     ctx.textAlign = 'left';
-    ctx.font = narrow ? 'bold 20px Impact, Arial Black, sans-serif' : 'bold 28px Impact, Arial Black, sans-serif';
+    ctx.font = `900 ${narrow ? 18 : 24}px ${fontStack}`;
     ctx.fillStyle = '#f7d53b';
-    ctx.fillText('DUMPSTER COUCH SHOP', px + (narrow ? 14 : 24), py + (narrow ? 34 : 44));
+    ctx.fillText('DUMPSTER MOD SHOP', px + (narrow ? 14 : 24), py + (narrow ? 32 : 42));
 
     ctx.textAlign = 'right';
-    ctx.font = narrow ? 'bold 18px Impact, Arial Black, sans-serif' : 'bold 22px Impact, Arial Black, sans-serif';
+    ctx.font = `900 ${narrow ? 16 : 20}px ${fontStack}`;
     ctx.fillStyle = '#a4ff3b';
-    ctx.fillText(`STASH: ${p.walletBalls} BALLS`, px + panelW - (narrow ? 14 : 24), py + (narrow ? 34 : 44));
+    ctx.fillText(`${p.walletBalls} BALLS`, px + panelW - (narrow ? 14 : 24), py + (narrow ? 32 : 42));
 
     // Left column: Snotty & Cletus portraits (hidden on narrow portrait phones so items get 100% width!)
     const leftColW = narrow ? 0 : 200;
     if (!narrow) {
       const pSize = 94;
-      this.renderer.drawCletusPortrait(px + 22, py + 74, pSize, true);
-      this.renderer.drawCaddiePortrait(px + 22 + pSize + 10, py + 74, pSize, {
+      this.renderer.drawCletusPortrait(px + 22, py + 70, pSize, true);
+      this.renderer.drawCaddiePortrait(px + 22 + pSize + 10, py + 70, pSize, {
         lumps: p.lumps,
         hasHelmet: p.hasHelmet,
         talking: false
       });
 
-      this.renderer.drawBoilBox(px + 22, py + 184, leftColW, 130, '#f3e5c8', '#161311', 3, 1.2, 855);
+      this.renderer.drawBoilBox(px + 22, py + 180, leftColW, 132, '#fff7e0', '#161311', 3, 1.1, 855);
       ctx.textAlign = 'left';
-      ctx.font = 'bold 15px Impact, sans-serif';
+      ctx.font = `900 14px ${fontStack}`;
       ctx.fillStyle = '#161311';
-      ctx.fillText('CLETUS:', px + 34, py + 210);
-      ctx.font = '15px Impact, Arial Black, sans-serif';
+      ctx.fillText('CLETUS:', px + 34, py + 206);
+      ctx.font = `bold 13px ${fontStack}`;
       ctx.fillStyle = '#3b2f2a';
       const couchTalk = [
         '"Heh-heh, trade me',
@@ -1630,17 +1634,17 @@ class CrazyCaddieGame {
         'Tap or press [1]-[7]!"'
       ];
       couchTalk.forEach((line, idx) => {
-        ctx.fillText(line, px + 34, py + 236 + idx * 22, leftColW - 24);
+        ctx.fillText(line, px + 34, py + 230 + idx * 21);
       });
     }
 
     // Right column (or Full Width on mobile): Clickable/Tappable Shop Items (1-7)
     const listX = narrow ? px + 14 : px + leftColW + 38;
     const listW = narrow ? panelW - 28 : panelW - (leftColW + 60);
-    const listY = py + (narrow ? 50 : 74);
-    const availH = panelH - (narrow ? 112 : 140);
+    const listY = py + (narrow ? 48 : 70);
+    const availH = panelH - (narrow ? 110 : 136);
     const rowH = Math.min(56, Math.floor(availH / this.shopItems.length));
-    const itemH = rowH - 6;
+    const itemH = rowH - 5;
 
     this.shopItems.forEach((item, i) => {
       const iy = listY + i * rowH;
@@ -1650,22 +1654,22 @@ class CrazyCaddieGame {
         (item.id === 'roof' && p.hasRoof);
 
       const bg = alreadyOwned ? '#3d4a3a' : canAfford ? '#4a3d31' : '#26211e';
-      this.renderer.drawBoilBox(listX, iy, listW, itemH, bg, '#161311', 2.5, 1.1, 860 + i);
+      this.renderer.drawBoilBox(listX, iy, listW, itemH, bg, '#161311', 2.5, 1.0, 860 + i);
 
       ctx.textAlign = 'left';
-      ctx.font = narrow ? 'bold 14px Impact, Arial Black, sans-serif' : 'bold 16px Impact, Arial Black, sans-serif';
-      ctx.fillStyle = alreadyOwned ? '#a4ff3b' : canAfford ? '#f7d53b' : '#8c827a';
-      ctx.fillText(`[${i + 1}] ${item.name}`, listX + 10, iy + itemH * 0.44, listW - 95);
+      ctx.font = `900 ${narrow ? 13 : 15}px ${fontStack}`;
+      ctx.fillStyle = alreadyOwned ? '#a4ff3b' : canAfford ? '#f7d53b' : '#9c928a';
+      ctx.fillText(`${i + 1}. ${item.name}`, listX + 10, iy + itemH * 0.44, listW - 88);
 
-      ctx.font = narrow ? '11.5px Arial, sans-serif' : '13px Arial, sans-serif';
-      ctx.fillStyle = '#e3ded1';
-      ctx.fillText(item.desc, listX + 10, iy + itemH * 0.82, listW - 95);
+      ctx.font = `bold ${narrow ? 11.5 : 13}px ${fontStack}`;
+      ctx.fillStyle = '#f3ece0';
+      ctx.fillText(item.desc, listX + 10, iy + itemH * 0.82, listW - 88);
 
       ctx.textAlign = 'right';
-      ctx.font = narrow ? 'bold 14px Impact, Arial Black, sans-serif' : 'bold 16px Impact, Arial Black, sans-serif';
-      ctx.fillStyle = alreadyOwned ? '#a4ff3b' : canAfford ? '#a4ff3b' : '#d95b52';
+      ctx.font = `900 ${narrow ? 13 : 15}px ${fontStack}`;
+      ctx.fillStyle = alreadyOwned ? '#a4ff3b' : canAfford ? '#a4ff3b' : '#ff6b61';
       const costLabel = alreadyOwned ? 'ON' : `${item.cost} BALLS`;
-      ctx.fillText(costLabel, listX + listW - 10, iy + itemH * 0.62);
+      ctx.fillText(costLabel, listX + listW - 10, iy + itemH * 0.6);
     });
 
     // Bottom button: Return to Course
@@ -1674,67 +1678,68 @@ class CrazyCaddieGame {
     const bx = narrow ? px + 14 : px + panelW - btnW - 24;
     const by = py + panelH - btnH - 12;
     const quotaMet = p.ballsCarried >= this.quota;
-    this.renderer.drawBoilBox(bx, by, btnW, btnH, quotaMet ? '#5cb82e' : '#d92b2b', '#161311', 3.5, 1.4, 890);
+    this.renderer.drawBoilBox(bx, by, btnW, btnH, quotaMet ? '#5cb82e' : '#d92b2b', '#161311', 3.5, 1.2, 890);
 
     ctx.textAlign = 'center';
-    ctx.font = 'bold 19px Impact, Arial Black, sans-serif';
+    ctx.font = `900 ${narrow ? 16 : 18}px ${fontStack}`;
     ctx.fillStyle = '#ffffff';
     ctx.fillText(
       quotaMet ? 'START NEXT EPISODE' : 'BACK TO GOLF CART',
       bx + btnW / 2,
-      by + btnH * 0.66
+      by + btnH * 0.65
     );
   }
 
   /**
    * Clean, Punchy Game Over Screen ("KNOCKED OUT!")
-   * Portraits sit cleanly below the headline with zero text overlap and minimal text.
    */
   drawGameOverOverlay() {
     const ctx = this.ctx;
-    const w = this.canvas.width;
-    const h = this.canvas.height;
+    const w = this.width;
+    const h = this.height;
+    const narrow = w < 540;
+    const fontStack = '"Trebuchet MS", "Arial Black", system-ui, -apple-system, sans-serif';
 
-    ctx.fillStyle = 'rgba(12, 8, 8, 0.86)';
+    ctx.fillStyle = 'rgba(12, 8, 8, 0.88)';
     ctx.fillRect(0, 0, w, h);
 
-    const cardW = Math.min(540, w - 40);
-    const cardH = Math.min(410, h - 40);
+    const cardW = Math.min(520, w - 24);
+    const cardH = Math.min(400, h - 24);
     const cx = (w - cardW) / 2;
     const cy = (h - cardH) / 2;
 
-    this.renderer.drawBoilBox(cx, cy, cardW, cardH, '#261c1a', '#d92b2b', 5, 2.0, 910);
+    this.renderer.drawBoilBox(cx, cy, cardW, cardH, '#261c1a', '#d92b2b', 5, 1.8, 910);
 
-    // 1. Big Bold Headline at the top (no portraits in this row!)
+    // 1. Big Bold Headline at the top
     ctx.textAlign = 'center';
-    ctx.font = 'bold 48px Impact, Arial Black, sans-serif';
+    ctx.font = `900 ${narrow ? 34 : 42}px ${fontStack}`;
     ctx.fillStyle = '#ff3b2f';
-    ctx.fillText('KNOCKED OUT!', w / 2, cy + 58);
+    ctx.fillText('KNOCKED OUT!', w / 2, cy + 52);
 
     // 2. Centered Portraits side-by-side below headline
-    const pSize = 110;
-    this.renderer.drawCaddiePortrait(w / 2 - pSize - 16, cy + 78, pSize, {
+    const pSize = narrow ? 94 : 108;
+    this.renderer.drawCaddiePortrait(w / 2 - pSize - 12, cy + 70, pSize, {
       lumps: 3,
       hurtTimer: 1
     });
-    this.renderer.drawCletusPortrait(w / 2 + 16, cy + 78, pSize, true);
+    this.renderer.drawCletusPortrait(w / 2 + 12, cy + 70, pSize, true);
 
     // 3. Single punchy roast quote & score box
-    this.renderer.drawBoilBox(cx + 36, cy + 206, cardW - 72, 104, '#f3e5c8', '#161311', 3, 1.4, 915);
-    ctx.font = 'bold 18px Impact, Arial Black, sans-serif';
+    this.renderer.drawBoilBox(cx + 24, cy + 192, cardW - 48, 102, '#fff7e0', '#161311', 3, 1.2, 915);
+    ctx.font = `900 ${narrow ? 14 : 17}px ${fontStack}`;
     ctx.fillStyle = '#161311';
-    ctx.fillText('"Uh-huh-huh... right in the forehead. Cool."', w / 2, cy + 240, cardW - 96);
+    ctx.fillText('"Uh-huh-huh... right in the forehead. Cool."', w / 2, cy + 226, cardW - 68);
 
-    ctx.font = 'bold 26px Impact, Arial Black, sans-serif';
+    ctx.font = `900 ${narrow ? 20 : 24}px ${fontStack}`;
     ctx.fillStyle = '#2d4c1e';
-    ctx.fillText(`SCORE: ${this.score}   •   EPISODE ${this.episode}`, w / 2, cy + 286, cardW - 96);
+    ctx.fillText(`SCORE: ${this.score}  •  EPISODE ${this.episode}`, w / 2, cy + 272, cardW - 68);
 
     // 4. Play Again Button
-    const btnW = 260;
-    this.renderer.drawBoilBox(w / 2 - btnW / 2, cy + cardH - 74, btnW, 50, '#d92b2b', '#161311', 3.5, 1.4, 920);
-    ctx.font = 'bold 24px Impact, Arial Black, sans-serif';
+    const btnW = Math.min(260, cardW - 48);
+    this.renderer.drawBoilBox(w / 2 - btnW / 2, cy + cardH - 70, btnW, 48, '#d92b2b', '#161311', 3.5, 1.2, 920);
+    ctx.font = `900 ${narrow ? 18 : 21}px ${fontStack}`;
     ctx.fillStyle = '#ffffff';
-    ctx.fillText('[SPACE] PLAY AGAIN', w / 2, cy + cardH - 41);
+    ctx.fillText(this.isMobile ? 'TAP TO PLAY AGAIN' : '[SPACE] PLAY AGAIN', w / 2, cy + cardH - 39);
   }
 
   loop(timestamp) {

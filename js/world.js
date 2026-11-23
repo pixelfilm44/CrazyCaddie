@@ -382,8 +382,8 @@ class GolfCourseWorld {
         renderer.drawBoilEllipse(p.x + 55, p.y - 20, 8 + bPulse * 0.4, 6 + bPulse * 0.3, '#a4ff3b', '#161311', 1.8, 1.0, 8, 1311);
       }
       ctx.save();
-      ctx.font = 'bold 13px Impact, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.65)';
+      ctx.font = '900 14px "Trebuchet MS", "Arial Black", system-ui, sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
       ctx.textAlign = 'center';
       ctx.fillText(p.label, p.x, p.y + 5);
       ctx.restore();
@@ -444,10 +444,10 @@ class GolfCourseWorld {
       }
     }
     ctx.save();
-    ctx.font = 'bold 16px Impact, Arial Black, sans-serif';
+    ctx.font = '900 17px "Trebuchet MS", "Arial Black", system-ui, sans-serif';
     ctx.fillStyle = '#161311';
     ctx.textAlign = 'center';
-    ctx.fillText('BUSHWOOD CLUBHOUSE', ch.x + ch.w / 2, ch.y + 26);
+    ctx.fillText('BUSHWOOD CLUBHOUSE', ch.x + ch.w / 2, ch.y + 27);
     ctx.restore();
 
     // 10. Smashable Collateral Props (Bushes, Small Trees, Golf Bags, Port-a-Potties, Wedding Cake)
