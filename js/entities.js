@@ -208,14 +208,24 @@ class PlayerCart {
     if (keys['KeyA'] || keys['ArrowLeft']) steer -= 1;
     if (keys['KeyD'] || keys['ArrowRight']) steer += 1;
 
-    // Mobile Virtual Thumbstick: point-to-steer + proportional throttle!
-    if (tc.stickActive && tc.stickMag > 0.12) {
-      const targetAngle = Math.atan2(tc.stickY, tc.stickX);
-      let diff = targetAngle - this.angle;
-      while (diff > Math.PI) diff -= Math.PI * 2;
-      while (diff < -Math.PI) diff += Math.PI * 2;
-      steer = Math.max(-1.25, Math.min(1.25, diff * 2.2));
-      throttle = Math.min(1, tc.stickMag * 1.15);
+    // Mobile Follow-Your-Finger Steering: cart drives toward your finger's world position on the course!
+    if (tc.followActive) {
+      const viewW = game.width / game.worldScale;
+      const viewH = game.height / game.worldScale;
+      const targetWorldX = game.camera.x + (tc.fingerScreenX / game.width) * viewW;
+      const targetWorldY = game.camera.y + (tc.fingerScreenY / game.height) * viewH;
+      const dx = targetWorldX - this.x;
+      const dy = targetWorldY - this.y;
+      const dist = Math.hypot(dx, dy);
+
+      if (dist > 14) {
+        const targetAngle = Math.atan2(dy, dx);
+        let diff = targetAngle - this.angle;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        steer = Math.max(-1.45, Math.min(1.45, diff * 2.6));
+        throttle = Math.min(1, Math.max(0.25, dist / 90));
+      }
     }
 
     // Concussion wobble or floating water current sway
@@ -627,6 +637,7 @@ class SnobGolfer {
   knockOut(ivx, ivy, game, customLabel = null) {
     if (this.state === 'ragdoll' && this.z > 10) return;
     this.state = 'ragdoll';
+    this.knockedOut = true;
     this.furious = true;
 
     const impactSpeed = Math.hypot(ivx, ivy);
@@ -778,16 +789,7 @@ class SnobGolfer {
         if (slideSpeed > 25) {
           this.limbFlail += slideSpeed * 0.08 * dt;
         }
-        // Count down stay-down timer once on the ground
-        this.timer -= dt;
-      }
-
-      if (this.timer <= 0 && this.z <= 0) {
-        this.state = 'idle';
-        this.timer = 1.1;
-        this.furious = true;
-        this.droppedClub = null;
-        this.say('EAT 3-WOOD, YOU LUNATIC CADDIE!');
+        // Stay knocked out on the turf so taking out all golfers clears the level!
       }
       return;
     }

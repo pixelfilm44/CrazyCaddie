@@ -17,15 +17,10 @@ class CrazyCaddieGame {
     this.isMobile = this.isTouchDevice;
     this.worldScale = 1.0;
     this.touchControls = {
-      stickTouchId: null,
-      stickBaseX: 96,
-      stickBaseY: window.innerHeight - 104,
-      stickKnobX: 96,
-      stickKnobY: window.innerHeight - 104,
-      stickX: 0,
-      stickY: 0,
-      stickMag: 0,
-      stickActive: false,
+      followTouchId: null,
+      followActive: false,
+      fingerScreenX: 0,
+      fingerScreenY: 0,
       duck: false,
       turbo: false,
       duckTouchId: null,
@@ -120,13 +115,6 @@ class CrazyCaddieGame {
     // Zoom camera out slightly on small screens so you can see incoming golf balls clearly!
     const minDim = Math.min(this.width, this.height);
     this.worldScale = minDim < 620 ? Math.max(0.68, minDim / 640) : 1.0;
-
-    if (this.touchControls && !this.touchControls.stickActive) {
-      this.touchControls.stickBaseX = 88;
-      this.touchControls.stickBaseY = this.height - 96;
-      this.touchControls.stickKnobX = 88;
-      this.touchControls.stickKnobY = this.height - 96;
-    }
   }
 
   getMobileButtons() {
@@ -220,8 +208,8 @@ class CrazyCaddieGame {
       const rect = this.canvas.getBoundingClientRect();
       this.mouse.x = e.clientX - rect.left;
       this.mouse.y = e.clientY - rect.top;
-      if (this.mouse.down && this.touchControls.stickTouchId === 'mouse') {
-        this.updateVirtualStick(this.mouse.x, this.mouse.y);
+      if (this.mouse.down && this.touchControls.followTouchId === 'mouse') {
+        this.updateFollowFinger(this.mouse.x, this.mouse.y);
       }
     });
 
@@ -255,8 +243,8 @@ class CrazyCaddieGame {
 
     window.addEventListener('mouseup', () => {
       this.mouse.down = false;
-      if (this.touchControls.stickTouchId === 'mouse') {
-        this.resetVirtualStick();
+      if (this.touchControls.followTouchId === 'mouse') {
+        this.resetFollowFinger();
       }
       if (this.touchControls.duckTouchId === 'mouse') {
         this.touchControls.duck = false;
@@ -306,10 +294,10 @@ class CrazyCaddieGame {
         const rect = this.canvas.getBoundingClientRect();
         for (let i = 0; i < e.changedTouches.length; i++) {
           const t = e.changedTouches[i];
-          if (t.identifier === this.touchControls.stickTouchId) {
+          if (t.identifier === this.touchControls.followTouchId) {
             const tx = t.clientX - rect.left;
             const ty = t.clientY - rect.top;
-            this.updateVirtualStick(tx, ty);
+            this.updateFollowFinger(tx, ty);
           }
         }
       },
@@ -320,8 +308,8 @@ class CrazyCaddieGame {
       e.preventDefault();
       for (let i = 0; i < e.changedTouches.length; i++) {
         const t = e.changedTouches[i];
-        if (t.identifier === this.touchControls.stickTouchId) {
-          this.resetVirtualStick();
+        if (t.identifier === this.touchControls.followTouchId) {
+          this.resetFollowFinger();
         }
         if (t.identifier === this.touchControls.duckTouchId) {
           this.touchControls.duck = false;
@@ -375,53 +363,27 @@ class CrazyCaddieGame {
       return true;
     }
 
-    // 3. Left half of screen engages the Virtual Thumbstick!
-    if (tx < this.width * 0.52 && ty > 100 && this.touchControls.stickTouchId === null) {
-      this.touchControls.stickTouchId = touchId;
-      this.touchControls.stickActive = true;
-      // Anchor joystick where thumb lands (or near default base)
-      const distToDefault = Math.hypot(tx - 88, ty - (this.height - 96));
-      if (distToDefault < 85) {
-        this.touchControls.stickBaseX = 88;
-        this.touchControls.stickBaseY = this.height - 96;
-      } else {
-        this.touchControls.stickBaseX = tx;
-        this.touchControls.stickBaseY = ty;
-      }
-      this.updateVirtualStick(tx, ty);
+    // 3. Touching anywhere else on the course makes the golf cart follow your finger!
+    if (this.touchControls.followTouchId === null) {
+      this.touchControls.followTouchId = touchId;
+      this.touchControls.followActive = true;
+      this.updateFollowFinger(tx, ty);
       return true;
     }
 
     return false;
   }
 
-  updateVirtualStick(tx, ty) {
+  updateFollowFinger(tx, ty) {
     const tc = this.touchControls;
-    const dx = tx - tc.stickBaseX;
-    const dy = ty - tc.stickBaseY;
-    const maxR = 48;
-    const dist = Math.hypot(dx, dy);
-    const clamped = Math.min(maxR, dist);
-    const angle = Math.atan2(dy, dx);
-
-    tc.stickKnobX = tc.stickBaseX + Math.cos(angle) * clamped;
-    tc.stickKnobY = tc.stickBaseY + Math.sin(angle) * clamped;
-    tc.stickMag = clamped / maxR;
-    tc.stickX = dist > 0 ? dx / dist : 0;
-    tc.stickY = dist > 0 ? dy / dist : 0;
+    tc.fingerScreenX = tx;
+    tc.fingerScreenY = ty;
   }
 
-  resetVirtualStick() {
+  resetFollowFinger() {
     const tc = this.touchControls;
-    tc.stickTouchId = null;
-    tc.stickActive = false;
-    tc.stickMag = 0;
-    tc.stickX = 0;
-    tc.stickY = 0;
-    tc.stickBaseX = 88;
-    tc.stickBaseY = this.height - 96;
-    tc.stickKnobX = 88;
-    tc.stickKnobY = this.height - 96;
+    tc.followTouchId = null;
+    tc.followActive = false;
   }
 
   startNewGame() {
@@ -464,6 +426,7 @@ class CrazyCaddieGame {
     this.disruption = Math.min(35, (ep - 1) * 12);
     this.ranger = null;
     this.kong = null;
+    this.levelClearTimer = 0;
 
     this.golfers = [];
     this.balls = [];
@@ -1031,6 +994,27 @@ class CrazyCaddieGame {
       }
     }
 
+    // Check if ALL golfers on the course have been taken out — advance to Next Level (Night Course with Spotlights!)
+    if (this.golfers.length > 0 && this.golfers.every((g) => g.state === 'ragdoll')) {
+      if (this.levelClearTimer <= 0) {
+        this.levelClearTimer = 1.6;
+        this.score += 500;
+        window.sound.playChuckle('high');
+        this.addFloatingText(p.x, p.y - 54, 'ALL GOLFERS TAKEN OUT! +500 • NIGHT COURSE NEXT!', '#a4ff3b');
+        p.say('LIGHTS OUT, SNOBS! TIME FOR NIGHT GOLF!', 2.2);
+      } else {
+        this.levelClearTimer -= dt;
+        if (this.levelClearTimer <= 0) {
+          this.episode++;
+          this.quota = Math.floor(this.quota * 1.3);
+          this.setupEpisode(this.episode, false);
+          this.addFloatingText(p.x, p.y - 54, `LEVEL ${this.episode}: NIGHT COURSE & SPOTLIGHTS!`, '#fff3a1');
+          p.say('NIGHT SHIFT! WATCH THE SPOTLIGHTS!', 2.6);
+          return;
+        }
+      }
+    }
+
     // Update COUNTRY CLUB KONG Boss Fight & Tail-Whip vs. Kong!
     if (this.kong) {
       this.kong.update(dt, this.world, this);
@@ -1393,6 +1377,9 @@ class CrazyCaddieGame {
       ctx.fillRect(pt.x - pt.size / 2, pt.y - pt.size / 2, pt.size, pt.size);
     }
 
+    // 7b. Draw Night Course Darkness & Sweeping Spotlights (Level 2+)
+    this.world.drawNightLighting(this.renderer, this.camera, this);
+
     // 8. Draw Comic Floating Score Texts (Crisp high-contrast cartoon font)
     ctx.font = '900 17px "Trebuchet MS", "Arial Black", system-ui, sans-serif';
     ctx.textAlign = 'center';
@@ -1507,8 +1494,10 @@ class CrazyCaddieGame {
       ctx.fillStyle = '#ffffff';
       ctx.fillText(quotaMet ? 'NEXT EP!' : `SHOP (${p.walletBalls})`, sb.x + sb.w / 2, sb.y + sb.h * 0.63);
 
+      const activeGolferCount = this.golfers.filter((g) => g.state !== 'ragdoll').length;
+
       // Compact Rage Bar below top-right shop button on narrow phones, or top-center on wider screens
-      const rageW = compact ? sb.w : Math.min(180, Math.max(120, sb.x - (statsX + statsW + 16)));
+      const rageW = compact ? sb.w : Math.min(195, Math.max(125, sb.x - (statsX + statsW + 16)));
       const rageX = compact ? sb.x : statsX + statsW + (sb.x - (statsX + statsW) - rageW) / 2;
       const rageY = compact ? sb.y + sb.h + 5 : pad;
       const rageH = compact ? 28 : 42;
@@ -1516,7 +1505,7 @@ class CrazyCaddieGame {
       ctx.font = `900 ${compact ? 10 : 12}px ${fontStack}`;
       ctx.fillStyle = this.disruption >= 70 ? '#ff4d3b' : '#f7d53b';
       ctx.fillText(
-        this.disruption >= 70 ? 'RANGER!' : `RAGE ${Math.floor(this.disruption)}%`,
+        this.disruption >= 70 ? `RANGER! • ${activeGolferCount} SNOBS` : `SNOBS: ${activeGolferCount} • RAGE ${Math.floor(this.disruption)}%`,
         rageX + rageW / 2,
         rageY + (compact ? 12 : 16)
       );
@@ -1528,10 +1517,11 @@ class CrazyCaddieGame {
       ctx.fillStyle = this.disruption >= 70 ? '#ff2a1f' : '#eb7a23';
       ctx.fillRect(rageX + bPad, bY, Math.max(2, ((rageW - bPad * 2) * this.disruption) / 100), bH);
     } else {
+      const activeGolferCount = this.golfers.filter((g) => g.state !== 'ragdoll').length;
       const mapSize = 96;
       const mapX = w - mapSize - 14;
       const mapY = 14;
-      this.renderer.drawBoilBox(mapX, mapY, mapSize, mapSize, 'rgba(38, 58, 28, 0.9)', '#161311', 3, 1.2, 705);
+      this.renderer.drawBoilBox(mapX, mapY, mapSize, mapSize, this.world.isNight ? 'rgba(14, 22, 42, 0.94)' : 'rgba(38, 58, 28, 0.9)', '#161311', 3, 1.2, 705);
 
       const sx = mapSize / this.world.width;
       const sy = mapSize / this.world.height;
@@ -1541,13 +1531,26 @@ class CrazyCaddieGame {
         ctx.arc(mapX + g.x * sx, mapY + g.y * sy, 4.5, 0, Math.PI * 2);
         ctx.fill();
       }
+      if (this.world.isNight && this.world.spotlights) {
+        for (const sp of this.world.spotlights) {
+          ctx.fillStyle = 'rgba(255, 245, 160, 0.28)';
+          ctx.beginPath();
+          ctx.arc(mapX + sp.x * sx, mapY + sp.y * sy, 6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
       for (const b of this.balls) {
         ctx.fillStyle = b.kind === 'gold' ? '#ffd230' : '#ffffff';
         ctx.fillRect(mapX + b.x * sx - 1.5, mapY + b.y * sy - 1.5, 3, 3);
       }
       for (const g of this.golfers) {
-        ctx.fillStyle = g.aimAtPlayer ? '#ff2a1f' : '#eb5e7b';
-        ctx.fillRect(mapX + g.x * sx - 2, mapY + g.y * sy - 2, 4, 4);
+        if (g.state === 'ragdoll') {
+          ctx.fillStyle = 'rgba(160, 160, 160, 0.45)';
+          ctx.fillRect(mapX + g.x * sx - 1.5, mapY + g.y * sy - 1.5, 3, 3);
+        } else {
+          ctx.fillStyle = g.aimAtPlayer ? '#ff2a1f' : '#eb5e7b';
+          ctx.fillRect(mapX + g.x * sx - 2, mapY + g.y * sy - 2, 4, 4);
+        }
       }
       // Show Country Club Kong on radar minimap!
       if (this.kong && this.kong.state !== 'defeated') {
@@ -1564,17 +1567,20 @@ class CrazyCaddieGame {
       ctx.arc(mapX + p.x * sx, mapY + p.y * sy, 4, 0, Math.PI * 2);
       ctx.fill();
 
-      // Top-Center Compact Rage Meter
+      // Top-Center Compact Rage & Golfer Count Meter
       const availLeft = statsX + statsW + 12;
       const availRight = mapX - 12;
-      const barW = Math.min(200, Math.max(140, availRight - availLeft));
+      const barW = Math.min(240, Math.max(150, availRight - availLeft));
       const barX = availLeft + (availRight - availLeft - barW) / 2;
       this.renderer.drawBoilBox(barX, 14, barW, 46, 'rgba(20, 17, 15, 0.92)', '#161311', 2.8, 1.2, 702);
-      ctx.font = `900 13px ${fontStack}`;
+      ctx.font = `900 12.5px ${fontStack}`;
       ctx.textAlign = 'center';
-      ctx.fillStyle = this.disruption >= 70 ? '#ff4d3b' : '#f7d53b';
+      ctx.fillStyle = this.disruption >= 70 ? '#ff4d3b' : this.world.isNight ? '#fff3a1' : '#f7d53b';
+      const modePrefix = this.world.isNight ? 'NIGHT • ' : '';
       ctx.fillText(
-        this.disruption >= 70 ? 'RANGER CHASE!' : `RAGE: ${Math.floor(this.disruption)}%`,
+        this.disruption >= 70
+          ? `${modePrefix}RANGER! • ${activeGolferCount} SNOBS LEFT`
+          : `${modePrefix}SNOBS LEFT: ${activeGolferCount} • RAGE ${Math.floor(this.disruption)}%`,
         barX + barW / 2,
         30
       );
@@ -1646,7 +1652,7 @@ class CrazyCaddieGame {
   }
 
   /**
-   * Draw Hand-Inked Boiling Virtual Thumbstick & Action Buttons (plus prominent FIRE! button when mutated into Lizard!)
+   * Draw Mobile Finger-Target Indicator & Action Buttons (no control pad!)
    */
   drawMobileControls() {
     const ctx = this.ctx;
@@ -1655,49 +1661,21 @@ class CrazyCaddieGame {
     const fontStack = '"Trebuchet MS", "Arial Black", system-ui, -apple-system, sans-serif';
 
     ctx.save();
-    if (this.isMobile) {
-      // 1. Virtual Thumbstick (Bottom-Left)
-      ctx.globalAlpha = tc.stickActive ? 0.9 : 0.65;
+    // 1. Subtle cartoon target ring under finger while steering on the course
+    if (this.isMobile && tc.followActive) {
+      ctx.globalAlpha = 0.65;
       this.renderer.drawBoilEllipse(
-        tc.stickBaseX,
-        tc.stickBaseY,
-        46,
-        46,
-        'rgba(20, 17, 15, 0.72)',
-        '#f3e5c8',
+        tc.fingerScreenX,
+        tc.fingerScreenY,
+        18,
+        18,
+        'rgba(247, 213, 59, 0.22)',
+        '#f7d53b',
         2.5,
         1.1,
-        14,
-        950
-      );
-      ctx.strokeStyle = 'rgba(243, 229, 200, 0.35)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(tc.stickBaseX - 28, tc.stickBaseY);
-      ctx.lineTo(tc.stickBaseX + 28, tc.stickBaseY);
-      ctx.moveTo(tc.stickBaseX, tc.stickBaseY - 28);
-      ctx.lineTo(tc.stickBaseX, tc.stickBaseY + 28);
-      ctx.stroke();
-
-      // Draggable Thumb Knob
-      this.renderer.drawBoilEllipse(
-        tc.stickKnobX,
-        tc.stickKnobY,
-        22,
-        22,
-        '#f7d53b',
-        '#161311',
-        2.8,
-        0.9,
         10,
         951
       );
-      if (!tc.stickActive) {
-        ctx.font = `900 10px ${fontStack}`;
-        ctx.fillStyle = '#161311';
-        ctx.textAlign = 'center';
-        ctx.fillText('STEER', tc.stickKnobX, tc.stickKnobY + 3.5);
-      }
     }
 
     // 2. Action Buttons (Bottom-Right: HORN, DUCK, TURBO on mobile, plus blazing FIRE! button when Lizard or Cannon owned)

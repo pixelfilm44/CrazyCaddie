@@ -9,6 +9,7 @@ class GolfCourseWorld {
     this.width = 2600;
     this.height = 2000;
     this.level = level;
+    this.isNight = level >= 2;
 
     this.skidMarks = []; // Tire tracks on putting greens & fairways
     this.maxSkidMarks = 320;
@@ -20,6 +21,8 @@ class GolfCourseWorld {
     this.trees = [];
     this.props = []; // Smashable wedding tables, cake, champagne towers, carts, windows
     this.swans = [];
+    this.spotlights = [];
+    this.nightCanvas = null;
 
     this.generateCourse(level);
   }
@@ -194,6 +197,22 @@ class GolfCourseWorld {
     treeSpots.forEach(([tx, ty], idx) => {
       this.trees.push({ x: tx, y: ty, r: 34 + (idx % 3) * 6, seed: idx * 17 });
     });
+
+    // Sweeping Night-Course Stadium & Security Spotlights (Active on Level 2+ Night Shift!)
+    this.spotlights = [
+      { towerX: 250, towerY: 1480, cx: 510, cy: 1360, orbitRx: 175, orbitRy: 140, r: 215, phase: 0.2, speed: 0.75, color: '#fff3a1' },
+      { towerX: 350, towerY: 390, cx: 585, cy: 560, orbitRx: 165, orbitRy: 135, r: 220, phase: 1.6, speed: -0.68, color: '#e6f7ff' },
+      { towerX: 1085, towerY: 140, cx: 1300, cy: 375, orbitRx: 200, orbitRy: 100, r: 205, phase: 2.9, speed: 0.85, color: '#fff3a1' },
+      { towerX: 1250, towerY: 330, cx: 1260, cy: 650, orbitRx: 220, orbitRy: 145, r: 215, phase: 4.1, speed: -0.72, color: '#fff3a1' },
+      { towerX: 2240, towerY: 540, cx: 1960, cy: 710, orbitRx: 175, orbitRy: 145, r: 220, phase: 0.9, speed: 0.78, color: '#e6f7ff' },
+      { towerX: 2220, towerY: 1380, cx: 1850, cy: 1350, orbitRx: 210, orbitRy: 150, r: 215, phase: 3.5, speed: -0.74, color: '#fff3a1' },
+      { towerX: 1120, towerY: 1640, cx: 1310, cy: 1320, orbitRx: 195, orbitRy: 145, r: 225, phase: 5.2, speed: 0.66, color: '#e6f7ff' },
+      { towerX: 820, towerY: 1080, cx: 760, cy: 1120, orbitRx: 190, orbitRy: 170, r: 205, phase: 2.1, speed: 0.82, color: '#fff3a1' }
+    ];
+    this.spotlights.forEach((sp) => {
+      sp.x = sp.cx + Math.cos(sp.phase) * sp.orbitRx;
+      sp.y = sp.cy + Math.sin(sp.phase * 0.85) * sp.orbitRy;
+    });
   }
 
   addSkidMark(x1, y1, x2, y2, onGreen = false) {
@@ -317,6 +336,15 @@ class GolfCourseWorld {
           fc.vx *= Math.pow(0.85, dt * 60);
           fc.vy *= Math.pow(0.85, dt * 60);
         }
+      }
+    }
+
+    // Update sweeping Night Course Spotlights
+    if (this.isNight) {
+      for (const sp of this.spotlights) {
+        sp.phase += sp.speed * dt;
+        sp.x = sp.cx + Math.cos(sp.phase) * sp.orbitRx;
+        sp.y = sp.cy + Math.sin(sp.phase * 0.85) * sp.orbitRy;
       }
     }
   }
@@ -612,6 +640,172 @@ class GolfCourseWorld {
       renderer.drawBoilEllipse(t.x, t.y, t.r, t.r * 0.92, '#2d4c1e', '#161311', 3, 2.0, 12, 1900 + t.seed);
       renderer.drawBoilEllipse(t.x - 6, t.y - 6, t.r * 0.6, t.r * 0.55, '#3e662b', '#161311', 2, 1.5, 9, 1950 + t.seed);
     });
+
+    // 13. Night Course Floodlight Towers
+    if (this.isNight) {
+      this.spotlights.forEach((sp, idx) => {
+        // Concrete base & tall steel floodlight pole
+        renderer.drawBoilBox(sp.towerX - 9, sp.towerY - 6, 18, 12, '#6f787d', '#161311', 2.4, 0.7, 2100 + idx);
+        renderer.drawBoilLine(sp.towerX, sp.towerY - 4, sp.towerX, sp.towerY - 68, '#4a5257', 5, 0.8, 2110 + idx);
+        // Floodlight rack aimed toward spotlight target
+        const aimA = Math.atan2(sp.y - (sp.towerY - 68), sp.x - sp.towerX);
+        ctx.save();
+        ctx.translate(sp.towerX, sp.towerY - 68);
+        ctx.rotate(aimA);
+        renderer.drawBoilBox(-5, -11, 14, 22, '#2b3033', '#161311', 2.2, 0.6, 2120 + idx);
+        renderer.drawBoilEllipse(6, -5, 4, 4, sp.color, '#161311', 1.5, 0.4, 6, 2130 + idx);
+        renderer.drawBoilEllipse(6, 5, 4, 4, sp.color, '#161311', 1.5, 0.4, 6, 2140 + idx);
+        ctx.restore();
+      });
+    }
+  }
+
+  /**
+   * Render Night-Time Darkness Mask, Sweeping Course Spotlights, and Cart Headlights!
+   */
+  drawNightLighting(renderer, camera, game) {
+    if (!this.isNight) return;
+    const ctx = renderer.ctx;
+    const p = game.player;
+
+    // 1. Draw translucent cartoon spotlight beams & illuminated turf rings in World Space
+    ctx.save();
+    this.spotlights.forEach((sp, idx) => {
+      const ox = sp.towerX;
+      const oy = sp.towerY - 68;
+      const dx = sp.x - ox;
+      const dy = sp.y - oy;
+      const dist = Math.hypot(dx, dy) || 1;
+      const nx = -dy / dist;
+      const ny = dx / dist;
+
+      // Translucent volumetric beam cone from tower to ground pool
+      const beamGrad = ctx.createLinearGradient(ox, oy, sp.x, sp.y);
+      beamGrad.addColorStop(0, 'rgba(255, 248, 185, 0.28)');
+      beamGrad.addColorStop(1, 'rgba(255, 248, 185, 0.06)');
+      ctx.fillStyle = beamGrad;
+      ctx.beginPath();
+      ctx.moveTo(ox, oy);
+      ctx.lineTo(sp.x + nx * sp.r * 0.88, sp.y + ny * sp.r * 0.88);
+      ctx.lineTo(sp.x - nx * sp.r * 0.88, sp.y - ny * sp.r * 0.88);
+      ctx.closePath();
+      ctx.fill();
+
+      // Warm illuminated spotlight pool glow on the fairway/green
+      const poolGrad = ctx.createRadialGradient(sp.x, sp.y, sp.r * 0.1, sp.x, sp.y, sp.r);
+      poolGrad.addColorStop(0, 'rgba(255, 250, 190, 0.22)');
+      poolGrad.addColorStop(0.75, 'rgba(255, 244, 160, 0.11)');
+      poolGrad.addColorStop(1, 'rgba(255, 244, 160, 0)');
+      ctx.fillStyle = poolGrad;
+      ctx.beginPath();
+      ctx.arc(sp.x, sp.y, sp.r, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Sketchy 90s cartoon spotlight ring on the grass
+      renderer.drawBoilEllipse(sp.x, sp.y, sp.r * 0.92, sp.r * 0.82, null, 'rgba(255, 245, 158, 0.38)', 2.2, 2.0, 18, 2200 + idx);
+    });
+
+    // Golf Cart Dual Headlight Cone in World Space (when driving cart)
+    if (!p.isLizard) {
+      ctx.save();
+      ctx.translate(p.x, p.y - p.z);
+      ctx.rotate(p.angle);
+      const hlGrad = ctx.createLinearGradient(16, 0, 290, 0);
+      hlGrad.addColorStop(0, 'rgba(255, 250, 190, 0.36)');
+      hlGrad.addColorStop(1, 'rgba(255, 250, 190, 0)');
+      ctx.fillStyle = hlGrad;
+      ctx.beginPath();
+      ctx.moveTo(18, -10);
+      ctx.lineTo(290, -115);
+      ctx.lineTo(290, 115);
+      ctx.lineTo(18, 10);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore();
+
+    // 2. Render Midnight Darkness Overlay with Smooth Spotlight & Headlight Cutouts
+    const sw = Math.max(1, Math.floor(game.width));
+    const sh = Math.max(1, Math.floor(game.height));
+    if (!this.nightCanvas) {
+      this.nightCanvas = document.createElement('canvas');
+    }
+    if (this.nightCanvas.width !== sw || this.nightCanvas.height !== sh) {
+      this.nightCanvas.width = sw;
+      this.nightCanvas.height = sh;
+    }
+
+    const nctx = this.nightCanvas.getContext('2d');
+    nctx.setTransform(1, 0, 0, 1, 0, 0);
+    nctx.globalCompositeOperation = 'source-over';
+    nctx.clearRect(0, 0, sw, sh);
+
+    // Deep midnight blue night-golf darkness
+    nctx.fillStyle = 'rgba(7, 11, 28, 0.68)';
+    nctx.fillRect(0, 0, sw, sh);
+
+    // Match camera transform to punch out world-space lights
+    nctx.save();
+    nctx.scale(game.worldScale, game.worldScale);
+    nctx.translate(-camera.x, -camera.y);
+    nctx.globalCompositeOperation = 'destination-out';
+
+    const punchLight = (lx, ly, innerR, outerR, alpha = 0.96) => {
+      const g = nctx.createRadialGradient(lx, ly, innerR, lx, ly, outerR);
+      g.addColorStop(0, `rgba(0, 0, 0, ${alpha})`);
+      g.addColorStop(0.65, `rgba(0, 0, 0, ${alpha * 0.72})`);
+      g.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      nctx.fillStyle = g;
+      nctx.beginPath();
+      nctx.arc(lx, ly, outerR, 0, Math.PI * 2);
+      nctx.fill();
+    };
+
+    // a) Sweeping Course Spotlights & Tower Lamps
+    for (const sp of this.spotlights) {
+      punchLight(sp.x, sp.y, sp.r * 0.25, sp.r * 1.25, 0.98);
+      punchLight(sp.towerX, sp.towerY - 60, 15, 95, 0.75);
+    }
+
+    // b) Putting Green Pin Floodlights
+    for (const g of this.greens) {
+      punchLight(g.x, g.y, g.r * 0.2, g.r * 1.05, 0.82);
+    }
+
+    // c) Glowing Radioactive Hazard Pond & Clubhouse Windows
+    const toxicPond = this.ponds[1];
+    if (toxicPond) {
+      punchLight(toxicPond.x, toxicPond.y, 40, toxicPond.rx * 1.75, 0.92);
+    }
+    const ch = this.clubhouse;
+    punchLight(ch.x + ch.w / 2, ch.y + ch.h / 2 + 20, 60, 290, 0.85);
+
+    // d) Player Cart Halo + Forward Headlights Beam (or Mutant Lizard Fire Glow!)
+    punchLight(p.x, p.y, 45, 175, 0.92);
+    const fx = Math.cos(p.angle);
+    const fy = Math.sin(p.angle);
+    punchLight(p.x + fx * 145, p.y + fy * 145, 45, 200, 0.95);
+    if (p.fireBreathTimer > 0) {
+      punchLight(p.x + fx * 130, p.y + fy * 130, 60, 260, 1.0);
+    }
+
+    // e) Roaming Beverage Cart & Head Ranger Chuck's Mower Headlights
+    punchLight(this.bevCart.x, this.bevCart.y, 20, 120, 0.78);
+    if (game.ranger) {
+      punchLight(game.ranger.x, game.ranger.y, 30, 150, 0.88);
+    }
+    if (game.kong && game.kong.state !== 'defeated') {
+      punchLight(game.kong.x, game.kong.y, 35, 165, 0.85);
+    }
+
+    nctx.restore();
+
+    // Composite night darkness mask over the world
+    ctx.save();
+    ctx.setTransform(game.dpr, 0, 0, game.dpr, 0, 0);
+    ctx.drawImage(this.nightCanvas, 0, 0, sw, sh);
+    ctx.restore();
   }
 }
 
